@@ -6,7 +6,6 @@ const inter = Inter({ subsets: ["latin"] });
 
 import { headers } from "next/headers"; // added
 import ContextProvider from "@/context/index";
-import ConnectWalletButton from "@/components/ConnectWalletButton";
 
 export const metadata: Metadata = {
   title: "AppKit Example App",
@@ -24,10 +23,7 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <ContextProvider cookies={cookies}>
-          <ConnectWalletButton />
-          {children}
-        </ContextProvider>
+        <ContextProvider cookies={cookies}>{children}</ContextProvider>
       </body>
     </html>
   );
