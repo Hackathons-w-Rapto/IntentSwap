@@ -1,46 +1,50 @@
 "use client";
 
-import { wagmiAdapter, projectId } from "@/config";
+import React, { type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createAppKit } from "@reown/appkit/react";
-import { mainnet, arbitrum } from "@reown/appkit/networks";
-import React, { type ReactNode } from "react";
 import { cookieToInitialState, WagmiProvider, type Config } from "wagmi";
+import {
+  wagmiAdapter,
+  projectId,
+  networks as importedNetworks,
+  customRpcUrls,
+} from "@/config";
 
-// Set up queryClient
 const queryClient = new QueryClient();
 
-if (!projectId) {
-  throw new Error("Project ID is not defined");
-}
-
-// Set up metadata
 const metadata = {
   name: "IntentSwap",
-  description: "Swap crypto with just words. AI-powered token transfers on Somnia.",
-  url: "https:localhost:3000", 
+  description:
+    "Swap crypto with just words. AI-powered token transfers on Somnia.",
+  url: "http://localhost:3000/",
   icons: ["https://intentswap.com/logo.svg"],
 };
 
-// Create the modal
+const networks = importedNetworks as [
+  (typeof importedNetworks)[0],
+  ...typeof importedNetworks
+];
+
 const modal = createAppKit({
   adapters: [wagmiAdapter],
-  projectId,
-  networks: [mainnet, arbitrum],
-  defaultNetwork: mainnet,
-  metadata: metadata,
+  projectId: projectId ?? "",
+  networks,
+  defaultNetwork: networks[0], 
+  metadata,
+  customRpcUrls, // pass same override
   features: {
-    analytics: true, // Optional - defaults to your Cloud configuration
+    analytics: true,
   },
+  // optionally: allowUnsupportedChain: true
 });
 
-function ContextProvider({
-  children,
-  cookies,
-}: {
+interface Props {
   children: ReactNode;
   cookies: string | null;
-}) {
+}
+
+export default function ContextProvider({ children, cookies }: Props) {
   const initialState = cookieToInitialState(
     wagmiAdapter.wagmiConfig as Config,
     cookies
@@ -56,4 +60,5 @@ function ContextProvider({
   );
 }
 
-export default ContextProvider;
+// export modal if needed
+export { modal };

@@ -16,7 +16,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-black flex flex-col items-center justify-center font-sans relative overflow-x-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-black via-purple-950/20 to-black animate-pulse" />
+      {/* <div className="absolute inset-0 bg-gradient-to-br from-black via-purple-950/20 to-black" /> */}
       <header className="w-full flex justify-between items-center px-8 py-6 border-b border-white">
         <h1 className="text-white text-2xl font-bold tracking-wide">
           INTENTSWAP

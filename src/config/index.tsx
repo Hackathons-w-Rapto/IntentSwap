@@ -1,6 +1,6 @@
 import { cookieStorage, createStorage, http } from "@wagmi/core";
 import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
-import { mainnet, arbitrum } from "@reown/appkit/networks";
+// import { mainnet } from "@reown/appkit/networks";
 
 // Custom networks
 const somniaTestnet = {
@@ -30,6 +30,29 @@ const somniaTestnet = {
   testnet: true,
 };
 
+const somniaMainnet = {
+  id: 5031,
+  name: "Somnia Mainnet",
+  network: "somnia-mainnet",
+  nativeCurrency: {
+    name: "Somnia",
+    symbol: "SOMI",
+    decimals: 18,
+  },
+  rpcUrls: {
+    default: {
+      http: ["https://api.infra.mainnet.somnia.network/"],
+    },
+  },
+  blockExplorers: {
+    default: {
+      name: "Somnia Explorer",
+      url: "https://explorer.somnia.network",
+    },
+  },
+  testnet: false,
+};
+
 const anvil = {
   id: 31337,
   name: "Anvil Local",
@@ -50,30 +73,27 @@ const anvil = {
   testnet: true,
 };
 
-// Custom RPC URLs for AppKit
+// Note: we define customRpcUrls as url field (not “http”) to match docs
 export const customRpcUrls = {
-  "eip155:50312": [{ http: "https://dream-rpc.somnia.network/" }],
-  "eip155:31337": [{ http: "http://127.0.0.1:8545" }],
+  "eip155:50312": [{ url: "https://dream-rpc.somnia.network/" }],
+  "eip155:31337": [{ url: "http://127.0.0.1:8545" }],
 };
 
-// Get projectId from https://dashboard.reown.com
+// Project ID
 export const projectId = process.env.NEXT_PUBLIC_PROJECT_ID;
-
 if (!projectId) {
   throw new Error("Project ID is not defined");
 }
 
-export const networks = [mainnet, arbitrum, somniaTestnet, anvil];
+export const networks = [somniaMainnet, somniaTestnet, anvil];
 
-//Set up the Wagmi Adapter (Config)
+// Create the WagmiAdapter with customRpcUrls
 export const wagmiAdapter = new WagmiAdapter({
-  storage: createStorage({
-    storage: cookieStorage,
-  }),
+  storage: createStorage({ storage: cookieStorage }),
   ssr: true,
   projectId,
   networks,
   customRpcUrls,
 });
 
-export const config = wagmiAdapter.wagmiConfig;
+export const wagmiConfig = wagmiAdapter.wagmiConfig;
