@@ -18,7 +18,7 @@ if (!projectId) {
 const metadata = {
   name: "IntentSwap",
   description: "Swap crypto with just words. AI-powered token transfers on Somnia.",
-  url: "https://intentswap.com", 
+  url: "https:localhost:3000", 
   icons: ["https://intentswap.com/logo.svg"],
 };
 

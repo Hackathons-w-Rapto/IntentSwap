@@ -1,15 +1,15 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Sora } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"] });
+const sora = Sora({ subsets: ["latin"] });
 
 import { headers } from "next/headers"; // added
 import ContextProvider from "@/context/index";
 
 export const metadata: Metadata = {
-  title: "AppKit Example App",
-  description: "Powered by Reown",
+  title: "IntentSwap - Swap Crypto with Just Words",
+  description: "Powered by Somnia Testnet and AI Technology",
 };
 
 export default async function RootLayout({
@@ -22,7 +22,7 @@ export default async function RootLayout({
 
   return (
     <html lang="en">
-      <body className={inter.className}>
+      <body className={sora.className}>
         <ContextProvider cookies={cookies}>{children}</ContextProvider>
       </body>
     </html>
