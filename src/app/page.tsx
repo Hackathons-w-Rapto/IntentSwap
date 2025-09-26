@@ -2,8 +2,13 @@
 import Link from "next/link";
 import ConnectWalletButton from "@/components/ConnectWalletButton";
 import { Meteors } from "@/components/ui/meteors";
+import { useAccount } from "wagmi";
+import { useState } from "react";
 
 export default function Home() {
+  const { isConnected } = useAccount();
+  const [showConnectMsg, setShowConnectMsg] = useState(false);
+
   return (
     <div className="min-h-screen bg-black flex flex-col items-center justify-center font-sans relative overflow-x-hidden">
       <div className="absolute inset-0 bg-gradient-to-br from-black via-purple-950/20 to-black animate-pulse" />
@@ -38,11 +43,25 @@ export default function Home() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 items-center justify-center mb-8">
-            <Link href="/chat">
-              <button className="mt-2 px-8 py-4 text-xl font-bold rounded border-2 border-white bg-gradient-to-r from-[#1E3DFF] via-[#7A1EFF] to-[#FF1E99] text-white shadow-lg hover:scale-105 transition-transform">
+            <div className="flex flex-col items-center">
+              <button
+                className="mt-2 px-8 py-4 text-xl font-bold rounded border-2 border-white bg-gradient-to-r from-[#1E3DFF] via-[#7A1EFF] to-[#FF1E99] text-white shadow-lg hover:scale-105 transition-transform"
+                onClick={() => {
+                  if (isConnected) {
+                    window.location.href = "/chat";
+                  } else {
+                    setShowConnectMsg(true);
+                  }
+                }}
+              >
                 START SWAPPING
               </button>
-            </Link>
+              {showConnectMsg && (
+                <div className="mt-3 text-red-400 font-semibold text-center">
+                  Please connect your wallet first to start swapping.
+                </div>
+              )}
+            </div>
 
             <Link href="#demo">
               <button className="mt-2 px-8 py-4 text-xl font-bold rounded border-2  shadow-lg hover:scale-105 transition-transform  border-gray-600 text-white hover:border-white hover:bg-white hover:text-black  duration-300">
@@ -78,7 +97,9 @@ export default function Home() {
               <div className="text-green-400 font-mono text-sm mb-2">
                 → Input:
               </div>
-              <div className="text-white mb-4">"Send 50 STT to Alice"</div>
+              <div className="text-white mb-4">
+                &quot;Send 50 STT to Alice&quot;
+              </div>
               <div className="text-blue-400 font-mono text-sm mb-2">
                 ← Parsed:
               </div>
@@ -92,7 +113,7 @@ export default function Home() {
                 → Input:
               </div>
               <div className="text-white mb-4">
-                "Transfer 100 tokens to 0x123..."
+                &quot;Transfer 100 tokens to 0x123...&quot;
               </div>
               <div className="text-blue-400 font-mono text-sm mb-2">
                 ← Parsed:
@@ -267,7 +288,7 @@ export default function Home() {
         </p>
         <div className="flex gap-6">
           <Link
-            href="https://github.com/your-repo"
+            href="https://github.com/Hackathons-w-Rapto/IntentSwap"
             target="_blank"
             rel="noopener noreferrer"
             className="text-gray-400 hover:text-white transition-colors duration-300"
@@ -280,15 +301,7 @@ export default function Home() {
             rel="noopener noreferrer"
             className="text-gray-400 hover:text-white transition-colors duration-300"
           >
-            Docs
-          </Link>
-          <Link
-            href="https://t.me/+XHq0F0JXMyhmMzM0"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-gray-400 hover:text-white transition-colors duration-300"
-          >
-            Telegram
+            Demo Video
           </Link>
         </div>
       </footer>

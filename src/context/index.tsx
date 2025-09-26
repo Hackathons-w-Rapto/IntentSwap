@@ -16,10 +16,10 @@ if (!projectId) {
 
 // Set up metadata
 const metadata = {
-  name: "appkit-example",
-  description: "AppKit Example",
-  url: "https://appkitexampleapp.com", // origin must match your domain & subdomain
-  icons: ["https://avatars.githubusercontent.com/u/179229932"],
+  name: "IntentSwap",
+  description: "Swap crypto with just words. AI-powered token transfers on Somnia.",
+  url: "https://intentswap.com", 
+  icons: ["https://intentswap.com/logo.svg"],
 };
 
 // Create the modal
