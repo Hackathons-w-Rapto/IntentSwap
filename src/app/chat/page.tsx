@@ -40,7 +40,7 @@ export default function ChatPage() {
     {
       id: "welcome",
       sender: "agent",
-      text: '👋 Welcome to IntentSwap! I can help you transfer tokens on Somnia testnet using simple commands. Try saying something like:\n\n• "Send 50 STT to Alice"\n• "Transfer 100 tokens to 0x123..."\n• "Pay Bob 25 STT"',
+      text: ' Welcome to IntentSwap! I can help you transfer tokens on Somnia testnet using simple commands. Try saying something like:\n\n• "Send 50 STT to Alice"\n• "Transfer 100 tokens to 0x123..."\n• "Pay Bob 25 STT"',
       timestamp: new Date(),
       type: "normal",
     },
@@ -141,7 +141,7 @@ export default function ChatPage() {
 
     addMessage({
       sender: "agent",
-      text: `Transaction submitted! 🚀\n\nYour transfer is being processed on Somnia testnet.`,
+      text: `Transaction submitted! \n\nYour transfer is being processed on Somnia testnet.`,
       type: "transaction",
       transactionData: {
         ...pendingConfirmation,

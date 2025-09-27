@@ -1,33 +1,140 @@
-// import { useAccount } from "wagmi";
-// import { useAppKit } from "@reown/appkit/react";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
+import Image from "next/image";
+import React from "react";
+import { motion } from "framer-motion";
 
-// export default function ConnectButton() {
-//   const { open } = useAppKit();
-//   const { address, isConnected } = useAccount();
+const ConnectBtn: React.FC<{ networks?: boolean }> = ({ networks }) => {
+  const buttonVariants = {
+    hover: { scale: 1.05 },
+    tap: { scale: 0.95 },
+  };
 
-//   if (isConnected) {
-//     return (
-//       <div className="flex items-center gap-2 px-3 py-2 rounded-xl border-2 border-white bg-black/60 text-white">
-//         {/* You can add a chain logo here if available */}
-//         <span className="font-mono text-xs">
-//           {address.slice(0, 6)}...{address.slice(-4)}
-//         </span>
-//       </div>
-//     );
-//   }
+  const buttonClasses =
+    "bg-gradient-to-r from-[#1E3DFF] via-[#7A1EFF] to-[#FF1E99] hover:from-[#7A1EFF] hover:to-[#1E3DFF] text-white py-2.5 px-6 rounded-xl transition-all duration-300 ease-in-out text-sm font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border-2 border-white";
 
-//   return (
-//     <button
-//       onClick={() => open()}
-//       className="rounded-xl px-3 py-3 font-bold text-sm bg-gradient-to-r from-[#1E3DFF] via-[#7A1EFF] to-[#FF1E99] text-white border-2 border-white shadow-lg hover:scale-105 focus:outline-none transition-transform duration-200"
-//     >
-//       Connect Wallet
-//     </button>
-//   );
-// }
+  const handleConnect = async (openConnectModal: () => void) => {
+    try {
+      await openConnectModal();
+    } catch (error) {
+      console.error("Connection error:", error);
+    }
+  };
 
-export default function ConnectButton() {
   return (
-    <appkit-button className="rounded-xl px-3 py-3 font-bold text-sm bg-gradient-to-r from-[#1E3DFF] via-[#7A1EFF] to-[#FF1E99] text-white border-2 border-white shadow-lg hover:scale-105 focus:outline-none transition-transform duration-200" />
+    <ConnectButton.Custom>
+      {({
+        account,
+        chain,
+        openAccountModal,
+        openChainModal,
+        openConnectModal,
+        authenticationStatus,
+        mounted,
+      }) => {
+        const ready = mounted && authenticationStatus !== "loading";
+        const connected =
+          ready &&
+          account &&
+          chain &&
+          (!authenticationStatus || authenticationStatus === "authenticated");
+
+        return (
+          <div
+            {...(!ready && {
+              "aria-hidden": true,
+              style: {
+                opacity: 0,
+                pointerEvents: "none",
+                userSelect: "none",
+              },
+            })}
+          >
+            {(() => {
+              if (!connected) {
+                return (
+                  <motion.button
+                    className={buttonClasses}
+                    onClick={() => handleConnect(openConnectModal)}
+                    type="button"
+                    variants={buttonVariants}
+                    whileHover="hover"
+                    whileTap="tap"
+                  >
+                    Connect Wallet
+                  </motion.button>
+                );
+              }
+
+              if (chain.unsupported && networks) {
+                return (
+                  <motion.button
+                    className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white py-2.5 px-6 rounded-xl transition-all duration-300 ease-in-out text-sm font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                    onClick={openChainModal}
+                    type="button"
+                    variants={buttonVariants}
+                    whileHover="hover"
+                    whileTap="tap"
+                  >
+                    Wrong network
+                  </motion.button>
+                );
+              }
+
+              return (
+                <div style={{ display: "flex", gap: 12 }}>
+                  {networks && (
+                    <motion.button
+                      onClick={openChainModal}
+                      style={{ display: "flex", alignItems: "center" }}
+                      className={buttonClasses}
+                      type="button"
+                      variants={buttonVariants}
+                      whileHover="hover"
+                      whileTap="tap"
+                    >
+                      {chain.hasIcon && (
+                        <div
+                          style={{
+                            background: chain.iconBackground,
+                            width: 20,
+                            height: 20,
+                            borderRadius: 999,
+                            overflow: "hidden",
+                            marginRight: 8,
+                          }}
+                        >
+                          {chain.iconUrl && (
+                            <Image
+                              alt={chain.name ?? "Chain icon"}
+                              src={chain.iconUrl}
+                              width={20}
+                              height={20}
+                            />
+                          )}
+                        </div>
+                      )}
+                      {chain.name}
+                    </motion.button>
+                  )}
+
+                  <motion.button
+                    className={buttonClasses}
+                    onClick={openAccountModal}
+                    type="button"
+                    variants={buttonVariants}
+                    whileHover="hover"
+                    whileTap="tap"
+                  >
+                    {account.displayName}
+                  </motion.button>
+                </div>
+              );
+            })()}
+          </div>
+        );
+      }}
+    </ConnectButton.Custom>
   );
-}
+};
+
+export default ConnectBtn;
