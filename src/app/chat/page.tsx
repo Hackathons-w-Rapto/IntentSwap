@@ -57,7 +57,7 @@ export default function ChatPage() {
 
   // Mock AI parsing function
   const parseIntent = (text: string): TransactionConfirmation | null => {
-    const lowerText = text.toLowerCase();
+    // const lowerText = text.toLowerCase();
 
     // Simple regex patterns for demo
     const patterns = [
