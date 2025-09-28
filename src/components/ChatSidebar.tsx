@@ -105,7 +105,7 @@ export default function ChatSidebar() {
                       size="icon"
                       aria-label="Close sidebar"
                     >
-                      <X className="w-5 h-5" />
+                      <GoSidebarCollapse className="w-5 h-5" />
                     </Button>
                   </SheetTrigger>
                 </div>
@@ -162,7 +162,7 @@ export default function ChatSidebar() {
                 aria-label="Collapse sidebar"
                 onClick={() => setCollapsed(true)}
               >
-                <X className="w-5 h-5" />
+                <GoSidebarCollapse className="w-5 h-5" />
               </Button>
             </div>
           </div>
