@@ -13,6 +13,7 @@ import Link from "next/link";
 import { useAccount } from "wagmi";
 import ConnectWalletButton from "@/components/ConnectWalletButton";
 import ChatSidebar from "@/components/ChatSidebar";
+import { Separator } from "@/components/ui/separator";
 
 interface Message {
   id: string;
@@ -195,8 +196,8 @@ export default function ChatPage() {
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col">
         {/* Header */}
-        <header className="border-b border-gray-800 bg-black/80 backdrop-blur-sm p-4">
-          <div className="max-w-5xl mx-auto flex items-center justify-between">
+        <header className=" backdrop-blur-sm p-4">
+          <div className="max-w-5xl mx-auto py-0.5 flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Link
                 href="/"
@@ -205,7 +206,9 @@ export default function ChatPage() {
                 <ArrowLeft className="w-6 h-6" />
               </Link>
               <div>
-                <h1 className="text-xl font-bold text-white">IntentSwap Chat</h1>
+                <h1 className="text-xl font-bold text-white">
+                  IntentSwap Chat
+                </h1>
                 <p className="text-sm text-gray-400">
                   AI-powered token transfers
                 </p>
@@ -222,6 +225,7 @@ export default function ChatPage() {
               )}
             </div>
           </div>
+          <Separator />
         </header>
 
         {/* Chat Container */}
@@ -335,7 +339,9 @@ export default function ChatPage() {
                           {msg.transactionData.status === "failed" && (
                             <>
                               <AlertCircle className="w-4 h-4 text-red-400" />
-                              <span className="text-red-400 text-sm">Failed</span>
+                              <span className="text-red-400 text-sm">
+                                Failed
+                              </span>
                             </>
                           )}
                         </div>
