@@ -8,7 +8,7 @@ import { SiProbot } from "react-icons/si";
 import { FaBoltLightning } from "react-icons/fa6";
 import { GiCheckedShield } from "react-icons/gi";
 import { SlMagnifier } from "react-icons/sl";
-import AnimatedGradientText from "@/components/AnimatedGradientText";
+import AnimatedWordType from "@/components/AnimatedWordType";
 
 export default function Home() {
   const { isConnected } = useAccount();
@@ -36,10 +36,7 @@ export default function Home() {
               WITH
               <br />
             </span>
-            <AnimatedGradientText text={"JUST - WORDS."} />
-            {/* <span className="bg-gradient-to-r from-[#1E3DFF] via-[#7A1EFF] to-[#FF1E99] bg-clip-text text-transparent animate-gradient">
-              JUST WORDS.
-            </span> */}
+            <AnimatedWordType />
           </h2>
 
           <p className="text-gray-300 text-lg sm:text-xl text-center mb-8 max-w-2xl mx-auto leading-relaxed">
