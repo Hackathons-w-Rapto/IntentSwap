@@ -14,6 +14,7 @@ import { useAccount } from "wagmi";
 import ConnectWalletButton from "@/components/ConnectWalletButton";
 import ChatSidebar from "@/components/ChatSidebar";
 import { Separator } from "@/components/ui/separator";
+import { FaMicrophone } from "react-icons/fa6";
 
 interface Message {
   id: string;
@@ -437,6 +438,10 @@ export default function ChatPage() {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && sendMessage()}
                 disabled={isTyping || !!pendingConfirmation}
+              />
+              <FaMicrophone
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 cursor-pointer"
+                style={{ pointerEvents: "auto" }}
               />
             </div>
             <button
