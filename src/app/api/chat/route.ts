@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-// Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 interface TransactionIntent {
@@ -27,7 +26,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check for API key
     if (!process.env.GEMINI_API_KEY) {
       return NextResponse.json(
         { error: "GEMINI_API_KEY not configured" },
@@ -35,10 +33,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Get the generative model
     const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
-    // Create a system prompt for transaction intent parsing
     const systemPrompt = `You are an AI assistant for IntentSwap, a blockchain transaction platform on Somnia testnet. 
 Your job is to parse user messages and extract transaction intents.
 
@@ -73,7 +69,6 @@ If the message is unclear or not a transaction request, respond with:
 If the user is just chatting or asking questions, respond naturally but keep it concise.
 Always be helpful and friendly. If you're unsure about a transaction detail, ask for clarification.`;
 
-    // Build chat history for context
     const chatHistory: ChatMessage[] = [
       {
         role: "user",
@@ -86,7 +81,6 @@ Always be helpful and friendly. If you're unsure about a transaction detail, ask
       },
     ];
 
-    // Add conversation history if provided
     if (history && Array.isArray(history)) {
       history.forEach((msg: any) => {
         chatHistory.push({
@@ -96,13 +90,11 @@ Always be helpful and friendly. If you're unsure about a transaction detail, ask
       });
     }
 
-    // Add current message
     chatHistory.push({
       role: "user",
       parts: message,
     });
 
-    // Start chat with history
     const chat = model.startChat({
       history: chatHistory.map((msg) => ({
         role: msg.role,
@@ -114,24 +106,20 @@ Always be helpful and friendly. If you're unsure about a transaction detail, ask
       },
     });
 
-    // Send message and get response
     const result = await chat.sendMessage(message);
     const response = await result.response;
     const responseText = response.text();
 
-    // Try to parse as JSON first
     let parsedResponse;
     try {
       parsedResponse = JSON.parse(responseText);
     } catch (e) {
-      // If not JSON, treat as regular text response
       parsedResponse = {
         type: "text",
         message: responseText,
       };
     }
 
-    // Return the structured response
     return NextResponse.json({
       success: true,
       response: parsedResponse,

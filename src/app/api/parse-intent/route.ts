@@ -60,7 +60,6 @@ Respond only with JSON, no other text:`;
     const response = await result.response;
     const text = response.text();
 
-    // Clean up response (remove markdown code blocks if present)
     let cleanText = text.trim();
     if (cleanText.startsWith("```json")) {
       cleanText = cleanText.replace(/```json\n?/g, "").replace(/```\n?/g, "");
@@ -72,7 +71,6 @@ Respond only with JSON, no other text:`;
     try {
       parsed = JSON.parse(cleanText);
     } catch (e) {
-      // Fallback: try to extract JSON from the text
       const jsonMatch = cleanText.match(/\{.*\}/s);
       if (jsonMatch) {
         parsed = JSON.parse(jsonMatch[0]);
@@ -81,7 +79,6 @@ Respond only with JSON, no other text:`;
       }
     }
 
-    // If parsing failed or confidence is too low
     if (parsed.error || (parsed.confidence && parsed.confidence < 0.5)) {
       return NextResponse.json({
         success: false,
@@ -91,7 +88,6 @@ Respond only with JSON, no other text:`;
       });
     }
 
-    // Add gas estimate
     const intentData: ParsedIntent = {
       amount: parsed.amount,
       token: parsed.token || "STT",
@@ -100,7 +96,6 @@ Respond only with JSON, no other text:`;
       gasEstimate: "0.001 ETH",
     };
 
-    // Validate the parsed data
     if (
       !intentData.amount ||
       !intentData.recipient ||
