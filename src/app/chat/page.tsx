@@ -38,7 +38,8 @@ interface TransactionConfirmation {
   gasEstimate: string;
 }
 export default function ChatPage() {
-  const { isConnected } = useAccount();
+  const Defaulttoken = "STT";
+  const { isConnected, address } = useAccount();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
@@ -104,6 +105,16 @@ export default function ChatPage() {
     return data;
   }
 
+  async function fetchBalance(address: string, token: string) {
+    const res = await fetch("/api/balance", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ address, token }),
+    });
+    const data = await res.json();
+    return data;
+  }
+
   const sendMessage = async () => {
     if (!input.trim()) return;
 
@@ -114,12 +125,21 @@ export default function ChatPage() {
 
     try {
       const response = await fetchIntentResponse(userInput);
-      console.log(response);
       setIsTyping(false);
       if (response.data && response.success) {
+        const userAddress = address || "";
+        const token = Defaulttoken || "STT";
+        const balanceRes = await fetchBalance(userAddress, token);
+        let balanceText = "";
+        if (balanceRes.success && balanceRes.data) {
+          balanceText = `Your balance: ${balanceRes.data.balance} ${token}`;
+        } else {
+          balanceText = "Unable to fetch balance.";
+        }
         addMessage({
           sender: "agent",
-          text: `I understand you want to transfer ${response.data.amount} ${response.data.token} to ${response.data.recipient}.\n\nPlease confirm the transaction details below:`,
+          text: `I understand you want to transfer ${response.data.amount} ${response.data.token} to ${response.data.recipient}.
+${balanceText}\n\nPlease confirm the transaction details below:`,
           type: "confirmation",
         });
         setPendingConfirmation(response);
