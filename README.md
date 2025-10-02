@@ -1,36 +1,48 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+🤖 Text-to-Transfer AI Agent
+Core Features
 
-## Getting Started
+Natural Language Processing → Parse text commands for token transfers
+Smart Contract Integration → Execute transfers on Somnia testnet
+Conversation Interface → Chat-like UI for easy interaction
+Transaction Confirmation → Safety checks before execution
 
-First, run the development server:
+Example Commands
+"Send 50 STT to 0x742d35Cc6238A4C8dF8A4bE89c8b9a2C4d5F6E7F"
+"Transfer 100 tokens to alice.eth" 
+"Pay 25 STT to Bob's wallet"
+"Send my friend 10 tokens"
+🛠 Tech Stack Suggestion
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+Frontend: React/Next.js with chat interface
+AI/NLP:
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Local: Use regex patterns + keyword matching
+Or integrate OpenAI API for better understanding
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Blockchain: Web3.js/Ethers.js for Somnia testnet
+Smart Contract: ERC-20 token transfer logic
 
-## Learn More
+🏗 Architecture Flow
 
-To learn more about Next.js, take a look at the following resources:
+User types command in chat
+AI parses: amount, recipient, token type
+Display confirmation with parsed details
+User approves → Execute transaction
+Show transaction hash and status
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+🎯 Track Recommendation
+DeFi Agents - This simplifies DeFi interactions through conversational AI, making token transfers more accessible.
+🚀 MVP Features
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Basic text parsing for transfers
+Somnia testnet integration
+Simple web interface
+Transaction history
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+our tech stack: Frontend: Next.js, React, TailwindCSS
+Backend: Next.js /api  
+AI: Gemini API for natural language processing
+Blockchain: Web3.js/Ethers.js + Somnia testnet
+Wallets: MetaMask or WalletConnect for Somnia
+Smart Contracts: Solidity contracts deployed on Somnia
