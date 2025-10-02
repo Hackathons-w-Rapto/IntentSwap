@@ -11,10 +11,12 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useAccount } from "wagmi";
+import { TOKEN_ADDRESSES } from "@/lib/blockchain/config";
 import ConnectWalletButton from "@/components/ConnectWalletButton";
 import ChatSidebar from "@/components/ChatSidebar";
 import { Separator } from "@/components/ui/separator";
 import { FaMicrophone } from "react-icons/fa6";
+import { ethers } from "ethers";
 
 interface Message {
   id: string;
@@ -26,7 +28,7 @@ interface Message {
     amount: string;
     token: string;
     recipient: string;
-    txHash?: string;
+    txReciept?: string;
     status?: "pending" | "confirmed" | "failed";
   };
 }
@@ -115,6 +117,54 @@ export default function ChatPage() {
     return data;
   }
 
+  async function fetchTransaction(txHash: string) {
+    const res = await fetch("/api/transaction-status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ txHash }),
+    });
+
+    const data = await res.json();
+    return data;
+  }
+
+  // Helper function to send a real transaction
+  async function sendRealTransaction({
+    recipient,
+    amount,
+    token,
+  }: TransactionConfirmation) {
+    if (!window.ethereum) {
+      throw new Error(
+        "Ethereum provider not found. Please connect your wallet."
+      );
+    }
+
+    // Create provider and signer from the user's wallet
+    const provider = new ethers.BrowserProvider(
+      window.ethereum as unknown as ethers.Eip1193Provider
+    );
+    const signer = await provider.getSigner();
+
+    const tokenAddress = TOKEN_ADDRESSES[token as keyof typeof TOKEN_ADDRESSES];
+
+    // ERC20 ABI for transfer
+    const ERC20_ABI = [
+      "function transfer(address to, uint256 amount) returns (bool)",
+    ];
+
+    // Create contract instance
+    const contract = new ethers.Contract(tokenAddress, ERC20_ABI, signer);
+
+    // Convert amount to correct decimals (assuming 18 decimals)
+    const decimals = 18;
+    const amountWei = ethers.parseUnits(amount, decimals);
+
+    // Send transaction and get the hash
+    const tx = await contract.transfer(recipient, amountWei);
+    return tx.hash;
+  }
+
   const sendMessage = async () => {
     if (!input.trim()) return;
 
@@ -175,10 +225,14 @@ ${balanceText}\n\nPlease confirm the transaction details below:`,
     setTimeout(() => setIsTyping(false), 800);
   };
 
-  const confirmTransaction = () => {
+  const confirmTransaction = async () => {
     if (!pendingConfirmation) return;
 
-    const txHash = `0x${Math.random().toString(16).substring(2, 66)}`;
+    // Send real transaction and get hash
+    const txHash = await sendRealTransaction(pendingConfirmation);
+
+    // Fetch transaction status/receipt
+    const txReceipt = await fetchTransaction(txHash);
 
     addMessage({
       sender: "agent",
@@ -186,18 +240,18 @@ ${balanceText}\n\nPlease confirm the transaction details below:`,
       type: "transaction",
       transactionData: {
         ...pendingConfirmation,
-        txHash,
-        status: "pending",
+        txReciept: txHash,
+        status: txReceipt.status || "pending",
       },
     });
 
     setPendingConfirmation(null);
 
-    // Simulate confirmation after delay
+    //  update status after a delay or on receipt change
     setTimeout(() => {
       setMessages((prev) =>
         prev.map((msg) =>
-          msg.transactionData?.txHash === txHash
+          msg.transactionData?.txReciept === txHash
             ? {
                 ...msg,
                 text: `Transaction confirmed!\n\nSuccessfully transferred ${pendingConfirmation.amount} ${pendingConfirmation.token} to ${pendingConfirmation.recipient}`,
@@ -342,16 +396,16 @@ ${balanceText}\n\nPlease confirm the transaction details below:`,
                           </div>
                         </div>
 
-                        {msg.transactionData.txHash && (
+                        {msg.transactionData.txReciept && (
                           <div className="mt-2 flex items-center gap-2">
                             <span className="text-gray-400 text-sm">TX:</span>
                             <button
                               onClick={() =>
-                                copyToClipboard(msg.transactionData!.txHash!)
+                                copyToClipboard(msg.transactionData!.txReciept!)
                               }
                               className="text-blue-400 hover:text-blue-300 text-xs font-mono flex items-center gap-1"
                             >
-                              {msg.transactionData.txHash.slice(0, 10)}...
+                              {msg.transactionData.txReciept.slice(0, 10)}...
                               <Copy className="w-3 h-3" />
                             </button>
                             <ExternalLink className="w-3 h-3 text-gray-400" />
