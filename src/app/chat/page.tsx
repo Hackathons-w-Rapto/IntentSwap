@@ -59,39 +59,86 @@ export default function ChatPage() {
   }, [messages]);
 
   // Mock AI parsing function
-  const parseIntent = (text: string): TransactionConfirmation | null => {
-    // const lowerText = text.toLowerCase();
+  // const parseIntent = (text: string): TransactionConfirmation | null => {
+  //   // const lowerText = text.toLowerCase();
 
-    // Simple regex patterns for demo
-    const patterns = [
-      /send (\d+(?:\.\d+)?)\s*(stt|tokens?)?\s*to\s*(.+)/i,
-      /transfer (\d+(?:\.\d+)?)\s*(stt|tokens?)?\s*to\s*(.+)/i,
-      /pay (.+?)\s*(\d+(?:\.\d+)?)\s*(stt|tokens?)?/i,
-    ];
+  //   // Simple regex patterns for demo
+  //   const patterns = [
+  //     /send (\d+(?:\.\d+)?)\s*(stt|tokens?)?\s*to\s*(.+)/i,
+  //     /transfer (\d+(?:\.\d+)?)\s*(stt|tokens?)?\s*to\s*(.+)/i,
+  //     /pay (.+?)\s*(\d+(?:\.\d+)?)\s*(stt|tokens?)?/i,
+  //   ];
 
-    for (const pattern of patterns) {
-      const match = text.match(pattern);
-      if (match) {
-        if (pattern.source.includes("pay")) {
-          // Handle "pay X amount" format
-          return {
-            amount: match[2],
-            token: match[3]?.toUpperCase() || "STT",
-            recipient: match[1],
-            gasEstimate: "0.001 ETH",
-          };
-        } else {
-          // Handle "send/transfer amount to recipient" format
-          return {
-            amount: match[1],
-            token: match[2]?.toUpperCase() || "STT",
-            recipient: match[3],
-            gasEstimate: "0.001 ETH",
-          };
-        }
+  //   for (const pattern of patterns) {
+  //     const match = text.match(pattern);
+  //     if (match) {
+  //       if (pattern.source.includes("pay")) {
+  //         // Handle "pay X amount" format
+  //         return {
+  //           amount: match[2],
+  //           token: match[3]?.toUpperCase() || "STT",
+  //           recipient: match[1],
+  //           gasEstimate: "0.001 ETH",
+  //         };
+  //       } else {
+  //         // Handle "send/transfer amount to recipient" format
+  //         return {
+  //           amount: match[1],
+  //           token: match[2]?.toUpperCase() || "STT",
+  //           recipient: match[3],
+  //           gasEstimate: "0.001 ETH",
+  //         };
+  //       }
+  //     }
+  //   }
+  //   return null;
+  // };
+
+  async function fetchIntentResponse(message: string, context?: string) {
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message, context }),
+    });
+    const data = await res.json();
+    return data;
+  }
+
+  const sendMessage = async () => {
+    if (!input.trim()) return;
+
+    addMessage({ sender: "user", text: input });
+    const userInput = input;
+    setInput("");
+    simulateTyping();
+
+    try {
+      const response = await fetchIntentResponse(userInput);
+      console.log(response);
+      setIsTyping(false);
+      if (response.data && response.success) {
+        addMessage({
+          sender: "agent",
+          text: `I understand you want to transfer ${response.data.amount} ${response.data.token} to ${response.data.recipient}.\n\nPlease confirm the transaction details below:`,
+          type: "confirmation",
+        });
+        setPendingConfirmation(response);
+      } else {
+        addMessage({
+          sender: "agent",
+          text: response.error || "Sorry, I couldn't process that.",
+          type: "error",
+        });
       }
+    } catch (error) {
+      addMessage({
+        sender: "agent",
+        text: "Server error. Please try again.",
+        type: "error",
+      });
+      throw new Error("Error fetching intent response");
+      console.error("Error fetching intent response:", error);
     }
-    return null;
   };
 
   const addMessage = (message: Omit<Message, "id" | "timestamp">) => {
@@ -106,35 +153,6 @@ export default function ChatPage() {
   const simulateTyping = () => {
     setIsTyping(true);
     setTimeout(() => setIsTyping(false), 800);
-  };
-
-  const sendMessage = () => {
-    if (!input.trim()) return;
-
-    addMessage({ sender: "user", text: input });
-    const userInput = input;
-    setInput("");
-
-    simulateTyping();
-
-    setTimeout(() => {
-      const parsed = parseIntent(userInput);
-
-      if (parsed) {
-        setPendingConfirmation(parsed);
-        addMessage({
-          sender: "agent",
-          text: `I understand you want to transfer ${parsed.amount} ${parsed.token} to ${parsed.recipient}.\n\nPlease confirm the transaction details below:`,
-          type: "confirmation",
-        });
-      } else {
-        addMessage({
-          sender: "agent",
-          text: 'I couldn\'t parse that command. Please try something like:\n\n• "Send 50 STT to Alice"\n• "Transfer 100 tokens to 0x123..."\n• "Pay Bob 25 STT"\n\nMake sure to include the amount, token type (optional), and recipient!',
-          type: "error",
-        });
-      }
-    }, 1000);
   };
 
   const confirmTransaction = () => {
