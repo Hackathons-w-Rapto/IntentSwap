@@ -7,7 +7,7 @@ export class GeminiParser {
   private model;
 
   constructor() {
-    this.model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    this.model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
   }
 
   async parseIntent(userMessage: string): Promise<ParsedIntent | null> {
