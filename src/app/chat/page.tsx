@@ -11,10 +11,12 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useAccount } from "wagmi";
+import { TOKEN_ADDRESSES } from "@/lib/blockchain/config";
 import ConnectWalletButton from "@/components/ConnectWalletButton";
 import ChatSidebar from "@/components/ChatSidebar";
 import { Separator } from "@/components/ui/separator";
 import { FaMicrophone } from "react-icons/fa6";
+import { ethers } from "ethers";
 
 interface Message {
   id: string;
@@ -26,7 +28,7 @@ interface Message {
     amount: string;
     token: string;
     recipient: string;
-    txHash?: string;
+    txReciept?: string;
     status?: "pending" | "confirmed" | "failed";
   };
 }
@@ -38,7 +40,8 @@ interface TransactionConfirmation {
   gasEstimate: string;
 }
 export default function ChatPage() {
-  const { isConnected } = useAccount();
+  const Defaulttoken = "STT";
+  const { isConnected, address } = useAccount();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
@@ -59,39 +62,153 @@ export default function ChatPage() {
   }, [messages]);
 
   // Mock AI parsing function
-  const parseIntent = (text: string): TransactionConfirmation | null => {
-    // const lowerText = text.toLowerCase();
+  // const parseIntent = (text: string): TransactionConfirmation | null => {
+  //   // const lowerText = text.toLowerCase();
 
-    // Simple regex patterns for demo
-    const patterns = [
-      /send (\d+(?:\.\d+)?)\s*(stt|tokens?)?\s*to\s*(.+)/i,
-      /transfer (\d+(?:\.\d+)?)\s*(stt|tokens?)?\s*to\s*(.+)/i,
-      /pay (.+?)\s*(\d+(?:\.\d+)?)\s*(stt|tokens?)?/i,
+  //   // Simple regex patterns for demo
+  //   const patterns = [
+  //     /send (\d+(?:\.\d+)?)\s*(stt|tokens?)?\s*to\s*(.+)/i,
+  //     /transfer (\d+(?:\.\d+)?)\s*(stt|tokens?)?\s*to\s*(.+)/i,
+  //     /pay (.+?)\s*(\d+(?:\.\d+)?)\s*(stt|tokens?)?/i,
+  //   ];
+
+  //   for (const pattern of patterns) {
+  //     const match = text.match(pattern);
+  //     if (match) {
+  //       if (pattern.source.includes("pay")) {
+  //         // Handle "pay X amount" format
+  //         return {
+  //           amount: match[2],
+  //           token: match[3]?.toUpperCase() || "STT",
+  //           recipient: match[1],
+  //           gasEstimate: "0.001 ETH",
+  //         };
+  //       } else {
+  //         // Handle "send/transfer amount to recipient" format
+  //         return {
+  //           amount: match[1],
+  //           token: match[2]?.toUpperCase() || "STT",
+  //           recipient: match[3],
+  //           gasEstimate: "0.001 ETH",
+  //         };
+  //       }
+  //     }
+  //   }
+  //   return null;
+  // };
+
+  async function fetchIntentResponse(message: string, context?: string) {
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message, context }),
+    });
+    const data = await res.json();
+    return data;
+  }
+
+  async function fetchBalance(address: string, token: string) {
+    const res = await fetch("/api/balance", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ address, token }),
+    });
+    const data = await res.json();
+    return data;
+  }
+
+  async function fetchTransaction(txHash: string) {
+    const res = await fetch("/api/transaction-status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ txHash }),
+    });
+
+    const data = await res.json();
+    return data;
+  }
+
+  // Helper function to send a real transaction
+  async function sendRealTransaction({
+    recipient,
+    amount,
+    token,
+  }: TransactionConfirmation) {
+    if (!window.ethereum) {
+      throw new Error(
+        "Ethereum provider not found. Please connect your wallet."
+      );
+    }
+
+    // Create provider and signer from the user's wallet
+    const provider = new ethers.BrowserProvider(
+      window.ethereum as unknown as ethers.Eip1193Provider
+    );
+    const signer = await provider.getSigner();
+
+    const tokenAddress = TOKEN_ADDRESSES[token as keyof typeof TOKEN_ADDRESSES];
+
+    // ERC20 ABI for transfer
+    const ERC20_ABI = [
+      "function transfer(address to, uint256 amount) returns (bool)",
     ];
 
-    for (const pattern of patterns) {
-      const match = text.match(pattern);
-      if (match) {
-        if (pattern.source.includes("pay")) {
-          // Handle "pay X amount" format
-          return {
-            amount: match[2],
-            token: match[3]?.toUpperCase() || "STT",
-            recipient: match[1],
-            gasEstimate: "0.001 ETH",
-          };
+    // Create contract instance
+    const contract = new ethers.Contract(tokenAddress, ERC20_ABI, signer);
+
+    // Convert amount to correct decimals (assuming 18 decimals)
+    const decimals = 18;
+    const amountWei = ethers.parseUnits(amount, decimals);
+
+    // Send transaction and get the hash
+    const tx = await contract.transfer(recipient, amountWei);
+    return tx.hash;
+  }
+
+  const sendMessage = async () => {
+    if (!input.trim()) return;
+
+    addMessage({ sender: "user", text: input });
+    const userInput = input;
+    setInput("");
+    simulateTyping();
+
+    try {
+      const response = await fetchIntentResponse(userInput);
+      setIsTyping(false);
+      if (response.data && response.success) {
+        const userAddress = address || "";
+        const token = Defaulttoken || "STT";
+        const balanceRes = await fetchBalance(userAddress, token);
+        let balanceText = "";
+        if (balanceRes.success && balanceRes.data) {
+          balanceText = `Your balance: ${balanceRes.data.balance} ${token}`;
         } else {
-          // Handle "send/transfer amount to recipient" format
-          return {
-            amount: match[1],
-            token: match[2]?.toUpperCase() || "STT",
-            recipient: match[3],
-            gasEstimate: "0.001 ETH",
-          };
+          balanceText = "Unable to fetch balance.";
         }
+        addMessage({
+          sender: "agent",
+          text: `I understand you want to transfer ${response.data.amount} ${response.data.token} to ${response.data.recipient}.
+${balanceText}\n\nPlease confirm the transaction details below:`,
+          type: "confirmation",
+        });
+        setPendingConfirmation(response);
+      } else {
+        addMessage({
+          sender: "agent",
+          text: response.error || "Sorry, I couldn't process that.",
+          type: "error",
+        });
       }
+    } catch (error) {
+      addMessage({
+        sender: "agent",
+        text: "Server error. Please try again.",
+        type: "error",
+      });
+      throw new Error("Error fetching intent response");
+      console.error("Error fetching intent response:", error);
     }
-    return null;
   };
 
   const addMessage = (message: Omit<Message, "id" | "timestamp">) => {
@@ -108,39 +225,14 @@ export default function ChatPage() {
     setTimeout(() => setIsTyping(false), 800);
   };
 
-  const sendMessage = () => {
-    if (!input.trim()) return;
-
-    addMessage({ sender: "user", text: input });
-    const userInput = input;
-    setInput("");
-
-    simulateTyping();
-
-    setTimeout(() => {
-      const parsed = parseIntent(userInput);
-
-      if (parsed) {
-        setPendingConfirmation(parsed);
-        addMessage({
-          sender: "agent",
-          text: `I understand you want to transfer ${parsed.amount} ${parsed.token} to ${parsed.recipient}.\n\nPlease confirm the transaction details below:`,
-          type: "confirmation",
-        });
-      } else {
-        addMessage({
-          sender: "agent",
-          text: 'I couldn\'t parse that command. Please try something like:\n\n• "Send 50 STT to Alice"\n• "Transfer 100 tokens to 0x123..."\n• "Pay Bob 25 STT"\n\nMake sure to include the amount, token type (optional), and recipient!',
-          type: "error",
-        });
-      }
-    }, 1000);
-  };
-
-  const confirmTransaction = () => {
+  const confirmTransaction = async () => {
     if (!pendingConfirmation) return;
 
-    const txHash = `0x${Math.random().toString(16).substring(2, 66)}`;
+    // Send real transaction and get hash
+    const txHash = await sendRealTransaction(pendingConfirmation);
+
+    // Fetch transaction status/receipt
+    const txReceipt = await fetchTransaction(txHash);
 
     addMessage({
       sender: "agent",
@@ -148,18 +240,18 @@ export default function ChatPage() {
       type: "transaction",
       transactionData: {
         ...pendingConfirmation,
-        txHash,
-        status: "pending",
+        txReciept: txHash,
+        status: txReceipt.status || "pending",
       },
     });
 
     setPendingConfirmation(null);
 
-    // Simulate confirmation after delay
+    //  update status after a delay or on receipt change
     setTimeout(() => {
       setMessages((prev) =>
         prev.map((msg) =>
-          msg.transactionData?.txHash === txHash
+          msg.transactionData?.txReciept === txHash
             ? {
                 ...msg,
                 text: `Transaction confirmed!\n\nSuccessfully transferred ${pendingConfirmation.amount} ${pendingConfirmation.token} to ${pendingConfirmation.recipient}`,
@@ -304,16 +396,16 @@ export default function ChatPage() {
                           </div>
                         </div>
 
-                        {msg.transactionData.txHash && (
+                        {msg.transactionData.txReciept && (
                           <div className="mt-2 flex items-center gap-2">
                             <span className="text-gray-400 text-sm">TX:</span>
                             <button
                               onClick={() =>
-                                copyToClipboard(msg.transactionData!.txHash!)
+                                copyToClipboard(msg.transactionData!.txReciept!)
                               }
                               className="text-blue-400 hover:text-blue-300 text-xs font-mono flex items-center gap-1"
                             >
-                              {msg.transactionData.txHash.slice(0, 10)}...
+                              {msg.transactionData.txReciept.slice(0, 10)}...
                               <Copy className="w-3 h-3" />
                             </button>
                             <ExternalLink className="w-3 h-3 text-gray-400" />
