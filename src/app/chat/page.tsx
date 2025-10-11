@@ -176,7 +176,14 @@ export default function ChatPage() {
     try {
       const response = await fetchIntentResponse(userInput);
       setIsTyping(false);
-      if (response.data && response.success) {
+      // console.log("Intent Response:", response);
+      if (
+        response.data &&
+        response.success &&
+        response.data.amount &&
+        response.data.token &&
+        response.data.recipient
+      ) {
         const userAddress = address || "";
         const token = Defaulttoken || "STT";
         const balanceRes = await fetchBalance(userAddress, token);
@@ -192,11 +199,17 @@ export default function ChatPage() {
 ${balanceText}\n\nPlease confirm the transaction details below:`,
           type: "confirmation",
         });
-        setPendingConfirmation(response);
+        setPendingConfirmation(response.data);
+      } else if (response.response) {
+        addMessage({
+          sender: "agent",
+          text: response.response,
+          type: "normal",
+        });
       } else {
         addMessage({
           sender: "agent",
-          text: response.error || "Sorry, I couldn't process that.",
+          text: "Sorry, I couldn't process that.",
           type: "error",
         });
       }
