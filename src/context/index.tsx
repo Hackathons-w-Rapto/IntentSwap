@@ -32,11 +32,10 @@ const modal = createAppKit({
   networks,
   defaultNetwork: networks[0], 
   metadata,
-  customRpcUrls, // pass same override
+  customRpcUrls,
   features: {
     analytics: true,
   },
-  // optionally: allowUnsupportedChain: true
 });
 
 interface Props {

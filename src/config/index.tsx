@@ -30,28 +30,28 @@ const somniaTestnet = {
   testnet: true,
 };
 
-const somniaMainnet = {
-  id: 5031,
-  name: "Somnia Mainnet",
-  network: "somnia-mainnet",
-  nativeCurrency: {
-    name: "Somnia",
-    symbol: "SOMI",
-    decimals: 18,
-  },
-  rpcUrls: {
-    default: {
-      http: ["https://api.infra.mainnet.somnia.network/"],
-    },
-  },
-  blockExplorers: {
-    default: {
-      name: "Somnia Explorer",
-      url: "https://explorer.somnia.network",
-    },
-  },
-  testnet: false,
-};
+// const somniaMainnet = {
+//   id: 5031,
+//   name: "Somnia Mainnet",
+//   network: "somnia-mainnet",
+//   nativeCurrency: {
+//     name: "Somnia",
+//     symbol: "SOMI",
+//     decimals: 18,
+//   },
+//   rpcUrls: {
+//     default: {
+//       http: ["https://api.infra.mainnet.somnia.network/"],
+//     },
+//   },
+//   blockExplorers: {
+//     default: {
+//       name: "Somnia Explorer",
+//       url: "https://explorer.somnia.network",
+//     },
+//   },
+//   testnet: false,
+// };
 
 const anvil = {
   id: 31337,
@@ -85,7 +85,7 @@ if (!projectId) {
   throw new Error("Project ID is not defined");
 }
 
-export const networks = [somniaMainnet, somniaTestnet, anvil];
+export const networks = [somniaTestnet, anvil];
 
 // Create the WagmiAdapter with customRpcUrls
 export const wagmiAdapter = new WagmiAdapter({

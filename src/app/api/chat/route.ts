@@ -17,11 +17,14 @@ export async function POST(req: NextRequest) {
       context || "General conversation",
       message
     );
+    console.log(response);
 
     return NextResponse.json({
       success: true,
+      message: "AI Response",
       response,
     });
+    
   } catch (error) {
     console.error("Error in chat:", error);
     return NextResponse.json(
