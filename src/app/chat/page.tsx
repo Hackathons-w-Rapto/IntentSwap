@@ -213,14 +213,20 @@ ${balanceText}\n\nPlease confirm the transaction details below:`,
           type: "error",
         });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       addMessage({
         sender: "agent",
         text: "Server error. Please try again.",
         type: "error",
       });
-      throw new Error("Error fetching intent response");
+    
+      if (error instanceof Error) {
+        throw new Error(`Error fetching intent response: ${error.message}`);
+      } else {
+        throw new Error("Error fetching intent response");
+      }
     }
+    
   };
 
   const addMessage = (message: Omit<Message, "id" | "timestamp">) => {
