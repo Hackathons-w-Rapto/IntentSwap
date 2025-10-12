@@ -97,7 +97,7 @@ export default function ChatPage() {
   //   return null;
   // };
 
-  async function fetchIntentResponse(message: string, context?: string) {
+  async function fetchIntentResponse(message: string, context: Message[]) {
     const res = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -174,7 +174,7 @@ export default function ChatPage() {
     simulateTyping();
 
     try {
-      const response = await fetchIntentResponse(userInput);
+      const response = await fetchIntentResponse(userInput, [...messages]);
       setIsTyping(false);
       // console.log("Intent Response:", response);
       if (

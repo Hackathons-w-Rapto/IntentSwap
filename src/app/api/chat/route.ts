@@ -12,19 +12,26 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // ✅ Convert structured context into readable chat history
+    const formattedContext = Array.isArray(context)
+      ? context
+          .map((msg) => `${msg.sender === "user" ? "User" : "Agent"}: ${msg.text}`)
+          .join("\n")
+      : "General conversation";
+
     const parser = new GeminiParser();
-    const response = await parser.generateResponse(
-      context || "General conversation",
-      message
-    );
-    console.log(response);
+
+    // Pass flattened conversation history
+    const response = await parser.generateResponse(formattedContext, message);
+
+    console.log("AI Response:", response);
 
     return NextResponse.json({
       success: true,
       message: "AI Response",
       response,
     });
-    
+
   } catch (error) {
     console.error("Error in chat:", error);
     return NextResponse.json(
