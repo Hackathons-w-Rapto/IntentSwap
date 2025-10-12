@@ -220,7 +220,6 @@ ${balanceText}\n\nPlease confirm the transaction details below:`,
         type: "error",
       });
       throw new Error("Error fetching intent response");
-      console.error("Error fetching intent response:", error);
     }
   };
 
@@ -235,7 +234,10 @@ ${balanceText}\n\nPlease confirm the transaction details below:`,
 
   const simulateTyping = () => {
     setIsTyping(true);
-    setTimeout(() => setIsTyping(false), 800);
+
+    // setTimeout(() => 
+    //   setIsTyping(false),
+    // 800);
   };
 
   const confirmTransaction = async () => {
