@@ -10,6 +10,7 @@ export const SOMNIA_CONFIG = {
     symbol: "STT",
     decimals: 18,
   },
+
 };
 
 export const TOKEN_ADDRESSES = {
@@ -17,7 +18,7 @@ export const TOKEN_ADDRESSES = {
     process.env.NEXT_PUBLIC_STT_TOKEN_ADDRESS ||
     "0x7f89af8b3c0A68F536Ff20433927F4573CF001A3",
 };
-
+export type SupportedToken = keyof typeof TOKEN_ADDRESSES;
 // ERC20 ABI for token transfers
 export const ERC20_ABI = [
   "function transfer(address to, uint256 amount) returns (bool)",
