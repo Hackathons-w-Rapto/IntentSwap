@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
         }
     ]
 
-    const user = await mockUsers.find(walletAddress);
+    const user = mockUsers.find((u) => u.walletAddress === walletAddress);
     console.log(user);
 
     if(!user) {
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
         })
     }
 
-    const token = walletAddress * 10;
+    const token = `${walletAddress}-token`;
 
     return NextResponse.json({
         error: null,

@@ -124,7 +124,10 @@ export async function POST(req: NextRequest) {
       case "balance_check": {
         const tokenAddress =
           TOKEN_ADDRESSES[intent.token as SupportedToken] || null;
-        const balance = await blockchain.getBalance(senderAddress, tokenAddress as string);
+        const balance = await blockchain.getBalance(
+          senderAddress,
+          tokenAddress as string
+        );
 
         aiResponse = `Your current ${intent.token || "STT"} balance is ${balance}.`;
         data = null; // Balance checks don't need transaction data

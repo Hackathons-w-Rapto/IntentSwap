@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useAccount } from "wagmi";
-import { TOKEN_ADDRESSES } from "@/lib/blockchain/config";
+import { TOKEN_ADDRESSES, SOMNIA_CONFIG } from "@/lib/blockchain/config";
 import ConnectWalletButton from "@/components/ConnectWalletButton";
 import ChatSidebar from "@/components/ChatSidebar";
 import { Separator } from "@/components/ui/separator";
@@ -149,6 +149,36 @@ export default function ChatPage() {
     const provider = new ethers.BrowserProvider(
       window.ethereum as unknown as ethers.Eip1193Provider
     );
+
+    // Ensure correct network (Somnia Testnet)
+    const network = await provider.getNetwork();
+    if (Number(network.chainId) !== SOMNIA_CONFIG.chainId) {
+      const chainIdHex = "0x" + SOMNIA_CONFIG.chainId.toString(16);
+      try {
+        await (window.ethereum as any).request({
+          method: "wallet_switchEthereumChain",
+          params: [{ chainId: chainIdHex }],
+        });
+      } catch (switchErr: any) {
+        if (switchErr?.code === 4902) {
+          await (window.ethereum as any).request({
+            method: "wallet_addEthereumChain",
+            params: [
+              {
+                chainId: chainIdHex,
+                chainName: SOMNIA_CONFIG.chainName,
+                nativeCurrency: SOMNIA_CONFIG.nativeCurrency,
+                rpcUrls: [SOMNIA_CONFIG.rpcUrl],
+                blockExplorerUrls: [SOMNIA_CONFIG.blockExplorer],
+              },
+            ],
+          });
+        } else {
+          throw switchErr;
+        }
+      }
+    }
+
     const signer = await provider.getSigner();
 
     const tokenAddress = TOKEN_ADDRESSES[token as keyof typeof TOKEN_ADDRESSES];
