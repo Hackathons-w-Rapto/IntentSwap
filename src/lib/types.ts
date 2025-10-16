@@ -1,10 +1,10 @@
 export interface ParsedIntent {
-  action: "transfer" | "send" | "pay" | "balance" | "check" | "balance_check";
-  amount: string;
-  token: string;
-  recipient: string;
-  confidence: number;
-}
+    action: "transfer" | "send" | "pay" | "balance" | "check" | "balance_check" | null;
+    amount: string | null;
+    token: string;
+    recipient: string | null;
+    confidence: number;
+  }
   
   export interface TransactionRequest {
     from: string;

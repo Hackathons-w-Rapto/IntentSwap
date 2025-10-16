@@ -71,18 +71,33 @@ export async function POST(req: NextRequest) {
     }
 
     // ✅ 3️⃣ Act on the parsed intent
-    let actionResult: any = null;
+    let data = null;
     let aiResponse: string = "";
 
     switch (intent.action?.toLowerCase()) {
       case "transfer":
       case "send":
       case "pay": {
+        // Validate required fields for transfer
+        if (!intent.recipient || !intent.amount) {
+          return NextResponse.json({
+            success: false,
+            response: "Please specify both the amount and recipient for the transfer."
+          });
+        }
+
         // Resolve recipient
         const resolved = await blockchain.resolveAddress(intent.recipient);
         const recipient = resolved || intent.recipient;
         const tokenAddress =
           TOKEN_ADDRESSES[intent.token as SupportedToken] || null;
+
+        if (!tokenAddress) {
+          return NextResponse.json({
+            success: false,
+            response: `Sorry, I don't recognize the token "${intent.token}". Currently supported tokens: ${Object.keys(TOKEN_ADDRESSES).join(", ")}`
+          });
+        }
 
         // Estimate gas
         const gasEstimate = await blockchain.estimateGas(
@@ -92,15 +107,14 @@ export async function POST(req: NextRequest) {
           tokenAddress as string
         );
 
-        aiResponse = `You're sending ${intent.amount} ${intent.token} to ${recipient}.
-Estimated gas: ${gasEstimate} STT.
-Would you like me to prepare the transaction?`;
+        aiResponse = `You're sending ${intent.amount} ${intent.token} to ${recipient}.\nEstimated gas: ${gasEstimate} STT.\nWould you like me to prepare the transaction?`;
 
-        actionResult = {
-          recipient,
-          gasEstimate,
+        // Return data in the format frontend expects
+        data = { 
           amount: intent.amount,
           token: intent.token,
+          recipient,
+          gasEstimate 
         };
         break;
       }
@@ -115,8 +129,8 @@ Would you like me to prepare the transaction?`;
           tokenAddress as string
         );
 
-        aiResponse = `Your current ${intent.token || "native"} balance is ${balance}.`;
-        actionResult = { balance, token: intent.token || "STT" };
+        aiResponse = `Your current ${intent.token || "STT"} balance is ${balance}.`;
+        data = null; // Balance checks don't need transaction data
         break;
       }
 
@@ -126,13 +140,13 @@ Would you like me to prepare the transaction?`;
       }
     }
 
-    // ✅ 4️⃣ Return combined response
+    // ✅ 4️⃣ Return combined response in format frontend expects
     return NextResponse.json({
       success: true,
       message: "AI Response",
       response: aiResponse,
+      data, // Frontend expects this structure
       intent,
-      actionResult,
     });
   } catch (error) {
     console.error("Error in chat:", error);

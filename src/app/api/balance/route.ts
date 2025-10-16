@@ -20,8 +20,10 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      balance,
-      token: token || "STT",
+      data: {
+        balance,
+        token: token || "STT",
+      }
     });
   } catch (error) {
     console.error("Error getting balance:", error);

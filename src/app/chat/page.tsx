@@ -40,7 +40,6 @@ interface TransactionConfirmation {
   gasEstimate: string;
 }
 export default function ChatPage() {
-  const Defaulttoken = "STT";
   const { isConnected, address } = useAccount();
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -136,7 +135,13 @@ export default function ChatPage() {
   }: TransactionConfirmation) {
     if (!window.ethereum) {
       throw new Error(
-        "Ethereum provider not found. Please connect your wallet."
+        "Ethereum provider not found. Please install MetaMask."
+      );
+    }
+
+    if (!isConnected) {
+      throw new Error(
+        "Wallet not connected. Please connect your wallet first."
       );
     }
 
@@ -178,6 +183,15 @@ export default function ChatPage() {
 
     const tokenAddress = TOKEN_ADDRESSES[token as keyof typeof TOKEN_ADDRESSES];
 
+    if (!tokenAddress) {
+      throw new Error(`Token ${token} is not supported.`);
+    }
+
+    // Validate recipient address
+    if (!ethers.isAddress(recipient)) {
+      throw new Error(`Invalid recipient address: ${recipient}`);
+    }
+
     // ERC20 ABI for transfer
     const ERC20_ABI = [
       "function transfer(address to, uint256 amount) returns (bool)",
@@ -187,32 +201,15 @@ export default function ChatPage() {
     // Create contract instance
     const contract = new ethers.Contract(tokenAddress, ERC20_ABI, signer);
 
-    // Resolve and validate recipient
-    let to = recipient.trim();
-    if (!ethers.isAddress(to)) {
-      try {
-        const res = await fetch("/api/resolve-address", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ nameOrAddress: to }),
-        });
-        const data = await res.json();
-        if (data?.success && data?.address && ethers.isAddress(data.address)) {
-          to = data.address;
-        } else {
-          throw new Error("Invalid recipient address");
-        }
-      } catch {
-        throw new Error("Could not resolve recipient address");
-      }
-    }
-
-    // Convert amount to correct decimals
+    // Get token decimals
     const decimals = await contract.decimals();
     const amountWei = ethers.parseUnits(amount, decimals);
 
-    // Send transaction and get the hash
-    const tx = await contract.transfer(to, amountWei);
+    // Send transaction - this will trigger MetaMask popup
+    const tx = await contract.transfer(recipient, amountWei);
+    
+    console.log("Transaction sent:", tx.hash);
+    
     return tx.hash;
   }
 
@@ -227,36 +224,44 @@ export default function ChatPage() {
     try {
       const response = await fetchIntentResponse(userInput, [...messages]);
       setIsTyping(false);
-      // Interpret API response shape
-      if (response?.success && response?.intent && response?.actionResult) {
-        const data: TransactionConfirmation = {
-          amount: response.intent.amount,
-          token: response.intent.token || Defaulttoken,
-          recipient: response.actionResult.recipient || response.intent.recipient,
-          gasEstimate: response.actionResult.gasEstimate || "~",
-        };
-
+      
+      console.log("Intent Response:", response);
+      
+      // Check if this is a transaction intent with data
+      if (
+        response.success &&
+        response.data &&
+        response.data.amount &&
+        response.data.token &&
+        response.data.recipient
+      ) {
+        // This is a transaction - fetch balance and show confirmation
         const userAddress = address || "";
-        const token = data.token || Defaulttoken;
+        const token = response.data.token || "STT";
         const balanceRes = await fetchBalance(userAddress, token);
-        const balanceText = balanceRes?.success && balanceRes?.balance
-          ? `Your balance: ${balanceRes.balance} ${token}`
-          : "Unable to fetch balance.";
-
+        let balanceText = "";
+        
+        if (balanceRes.success && balanceRes.data) {
+          balanceText = `Your balance: ${balanceRes.data.balance} ${token}`;
+        } else {
+          balanceText = "Unable to fetch balance.";
+        }
+        
         addMessage({
           sender: "agent",
-          text: `I understand you want to transfer ${data.amount} ${data.token} to ${data.recipient}.
-${balanceText}\n\nPlease confirm the transaction details below:`,
+          text: `I understand you want to transfer ${response.data.amount} ${response.data.token} to ${response.data.recipient}.\n${balanceText}\n\nPlease confirm the transaction details below:`,
           type: "confirmation",
         });
-        setPendingConfirmation(data);
-      } else if (response?.response) {
+        setPendingConfirmation(response.data);
+      } else if (response.response) {
+        // This is a regular AI response (balance check, general query, etc.)
         addMessage({
           sender: "agent",
           text: response.response,
           type: "normal",
         });
       } else {
+        // Fallback for unexpected response
         addMessage({
           sender: "agent",
           text: "Sorry, I couldn't process that.",
@@ -264,17 +269,14 @@ ${balanceText}\n\nPlease confirm the transaction details below:`,
         });
       }
     } catch (error: unknown) {
+      setIsTyping(false);
       addMessage({
         sender: "agent",
         text: "Server error. Please try again.",
         type: "error",
       });
-    
-      if (error instanceof Error) {
-        throw new Error(`Error fetching intent response: ${error.message}`);
-      } else {
-        throw new Error("Error fetching intent response");
-      }
+      
+      console.error("Error in sendMessage:", error);
     }
     
   };
@@ -299,42 +301,64 @@ ${balanceText}\n\nPlease confirm the transaction details below:`,
   const confirmTransaction = async () => {
     if (!pendingConfirmation) return;
 
-    // Send real transaction and get hash
-    const txHash = await sendRealTransaction(pendingConfirmation);
+    try {
+      // Send real transaction and get hash - this will trigger MetaMask
+      const txHash = await sendRealTransaction(pendingConfirmation);
 
-    // Fetch transaction status/receipt
-    const txReceipt = await fetchTransaction(txHash);
+      // Fetch transaction status/receipt
+      const txReceipt = await fetchTransaction(txHash);
 
-    addMessage({
-      sender: "agent",
-      text: `Transaction submitted! \n\nYour transfer is being processed on Somnia testnet.`,
-      type: "transaction",
-      transactionData: {
-        ...pendingConfirmation,
-        txReciept: txHash,
-        status: txReceipt.status || "pending",
-      },
-    });
+      addMessage({
+        sender: "agent",
+        text: `Transaction submitted! \n\nYour transfer is being processed on Somnia testnet.`,
+        type: "transaction",
+        transactionData: {
+          ...pendingConfirmation,
+          txReciept: txHash,
+          status: txReceipt.status || "pending",
+        },
+      });
 
-    setPendingConfirmation(null);
+      setPendingConfirmation(null);
 
-    //  update status after a delay or on receipt change
-    setTimeout(() => {
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.transactionData?.txReciept === txHash
-            ? {
-                ...msg,
-                text: `Transaction confirmed!\n\nSuccessfully transferred ${pendingConfirmation.amount} ${pendingConfirmation.token} to ${pendingConfirmation.recipient}`,
-                transactionData: {
-                  ...msg.transactionData!,
-                  status: "confirmed",
-                },
-              }
-            : msg
-        )
-      );
-    }, 3000);
+      // Poll for transaction status and update when confirmed
+      const pollInterval = setInterval(async () => {
+        const status = await fetchTransaction(txHash);
+        if (status.status === "confirmed" || status.status === "failed") {
+          clearInterval(pollInterval);
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.transactionData?.txReciept === txHash
+                ? {
+                    ...msg,
+                    text: status.status === "confirmed" 
+                      ? `Transaction confirmed!\n\nSuccessfully transferred ${pendingConfirmation.amount} ${pendingConfirmation.token} to ${pendingConfirmation.recipient}`
+                      : `Transaction failed!\n\nPlease try again.`,
+                    transactionData: {
+                      ...msg.transactionData!,
+                      status: status.status,
+                    },
+                  }
+                : msg
+            )
+          );
+        }
+      }, 2000);
+
+      // Clear interval after 30 seconds to avoid infinite polling
+      setTimeout(() => clearInterval(pollInterval), 30000);
+    } catch (error: unknown) {
+      setPendingConfirmation(null);
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      
+      addMessage({
+        sender: "agent",
+        text: `Transaction failed: ${errorMessage}`,
+        type: "error",
+      });
+      
+      console.error("Transaction error:", error);
+    }
   };
 
   const cancelTransaction = () => {

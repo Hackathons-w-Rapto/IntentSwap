@@ -25,7 +25,9 @@ export async function POST(req: NextRequest) {
 
     // Resolve recipient address if it's a name
     const blockchain = new BlockchainClient();
-    const resolvedAddress = await blockchain.resolveAddress(intent.recipient);
+    const resolvedAddress = intent.recipient 
+      ? await blockchain.resolveAddress(intent.recipient)
+      : null;
 
     return NextResponse.json({
       success: true,

@@ -55,11 +55,11 @@ interface ChatMessage {
         }
   
         return await response.json();
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error("Chat API Error:", error);
         return {
           success: false,
-          error: error.message || "Failed to communicate with chat API",
+          error: error instanceof Error ? error.message : "Failed to communicate with chat API",
         };
       }
     }
@@ -80,11 +80,11 @@ interface ChatMessage {
         }
   
         return await response.json();
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error("Parse Intent Error:", error);
         return {
           success: false,
-          error: error.message || "Failed to parse transaction intent",
+          error: error instanceof Error ? error.message : "Failed to parse transaction intent",
         };
       }
     }
