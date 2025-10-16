@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { MessageSquare, Home, Settings, Menu, X, Trash2 } from "lucide-react";
+import { MessageSquare, Home, Settings, Menu, Trash2 } from "lucide-react";
 import { GoSidebarCollapse } from "react-icons/go";
 import ConnectWalletButton from "./ConnectWalletButton";
 import { usePathname } from "next/navigation";

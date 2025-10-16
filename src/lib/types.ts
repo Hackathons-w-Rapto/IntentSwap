@@ -1,8 +1,8 @@
 export interface ParsedIntent {
-    action: "transfer" | "send" | "pay";
-    amount: string;
+    action: "transfer" | "send" | "pay" | "balance" | "check" | "balance_check" | null;
+    amount: string | null;
     token: string;
-    recipient: string;
+    recipient: string | null;
     confidence: number;
   }
   

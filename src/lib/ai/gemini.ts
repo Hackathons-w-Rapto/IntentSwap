@@ -13,22 +13,28 @@ export class GeminiParser {
   async parseIntent(userMessage: string): Promise<ParsedIntent | null> {
     try {
       const prompt = `
-  You are a transaction intent parser. Parse the following message and extract transaction details.
+  You are a transaction intent parser for a blockchain wallet. Parse the following message and extract transaction details.
   
   User message: "${userMessage}"
   
   Extract the following information:
-  1. Action type (transfer/send/pay)
-  2. Amount (numeric value)
+  1. Action type: transfer/send/pay for transactions, OR balance/check/balance_check for balance inquiries
+  2. Amount (numeric value) - required ONLY for transfer actions
   3. Token symbol (default to STT if not specified)
-  4. Recipient (wallet address or name)
+  4. Recipient (wallet address or name) - required ONLY for transfer actions
+  
+  Examples:
+  - "Send 50 STT to Alice" -> {"action": "transfer", "amount": "50", "token": "STT", "recipient": "Alice", "confidence": 0.95}
+  - "Check my balance" -> {"action": "balance", "amount": null, "token": "STT", "recipient": null, "confidence": 0.95}
+  - "What's my STT balance?" -> {"action": "balance", "amount": null, "token": "STT", "recipient": null, "confidence": 0.95}
+  - "Transfer 100 tokens to 0x123..." -> {"action": "transfer", "amount": "100", "token": "STT", "recipient": "0x123...", "confidence": 0.95}
   
   Return ONLY a JSON object in this exact format:
   {
-    "action": "transfer",
-    "amount": "50",
+    "action": "transfer" | "balance" | null,
+    "amount": "50" | null,
     "token": "STT",
-    "recipient": "Alice",
+    "recipient": "Alice" | null,
     "confidence": 0.95
   }
   
@@ -42,7 +48,9 @@ export class GeminiParser {
   }
   
   Rules:
-  - Amount must be a positive number
+  - For balance checks: action should be "balance", amount and recipient can be null
+  - For transfers: action should be "transfer"/"send"/"pay", amount and recipient are required
+  - Amount must be a positive number when specified
   - Token should be uppercase (e.g., STT, USDT)
   - Recipient can be a name or wallet address
   - Confidence should be 0.0 to 1.0
@@ -62,13 +70,21 @@ export class GeminiParser {
       const parsed = JSON.parse(cleaned);
   
       // Validate the structure and confidence threshold
-      if (
-        parsed.confidence < 0.7 ||
-        !parsed.action ||
-        !parsed.amount ||
-        !parsed.recipient
-      ) {
+      if (parsed.confidence < 0.7 || !parsed.action) {
         return null;
+      }
+
+      // For transfer actions, require amount and recipient
+      if (["transfer", "send", "pay"].includes(parsed.action.toLowerCase())) {
+        if (!parsed.amount || !parsed.recipient) {
+          return null;
+        }
+      }
+
+      // For balance checks, amount and recipient can be null
+      if (["balance", "check", "balance_check"].includes(parsed.action.toLowerCase())) {
+        parsed.amount = null;
+        parsed.recipient = null;
       }
   
       return parsed;
