@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ✅ 3️⃣ Act on the parsed intent
-    let actionResult = null;
+    let actionResult: any = null;
     let aiResponse: string = "";
 
     switch (intent.action?.toLowerCase()) {
@@ -96,7 +96,12 @@ export async function POST(req: NextRequest) {
 Estimated gas: ${gasEstimate} STT.
 Would you like me to prepare the transaction?`;
 
-        actionResult = { recipient, gasEstimate };
+        actionResult = {
+          recipient,
+          gasEstimate,
+          amount: intent.amount,
+          token: intent.token,
+        };
         break;
       }
 
@@ -105,10 +110,13 @@ Would you like me to prepare the transaction?`;
       case "balance_check": {
         const tokenAddress =
           TOKEN_ADDRESSES[intent.token as SupportedToken] || null;
-        const balance = await blockchain.getBalance(senderAddress, tokenAddress as string);
+        const balance = await blockchain.getBalance(
+          senderAddress,
+          tokenAddress as string
+        );
 
         aiResponse = `Your current ${intent.token || "native"} balance is ${balance}.`;
-        actionResult = { balance };
+        actionResult = { balance, token: intent.token || "STT" };
         break;
       }
 

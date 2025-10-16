@@ -1,16 +1,57 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { ParsedIntent } from "../types";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+const apiKey = process.env.GEMINI_API_KEY || "";
+const hasApiKey = !!apiKey;
+const genAI = new GoogleGenerativeAI(apiKey || "dummy");
 
 export class GeminiParser {
-  private model;
+  private model: any | null = null;
 
   constructor() {
-    this.model = genAI.getGenerativeModel({ model: "gemini-robotics-er-1.5-preview" });
+    if (hasApiKey) {
+      this.model = genAI.getGenerativeModel({ model: "gemini-robotics-er-1.5-preview" });
+    }
+  }
+
+  private regexFallback(userMessage: string): ParsedIntent | null {
+    const text = userMessage.trim();
+    // Patterns: "send 50 STT to 0xabc" | "transfer 10 to Alice" | "pay Bob 5 STT"
+    const patterns: RegExp[] = [
+      /\b(send|transfer)\s+(\d+(?:\.\d+)?)\s*([a-zA-Z]{2,10})?\s*to\s+(.+)/i,
+      /\bpay\s+(.+?)\s+(\d+(?:\.\d+)?)\s*([a-zA-Z]{2,10})?/i,
+      /\b(?:check|show|what(?:'|)s|what is)\s+(?:my\s+)?balance\b(?:\s+of\s+([a-zA-Z]{2,10}))?/i,
+    ];
+
+    for (const pattern of patterns) {
+      const m = text.match(pattern);
+      if (!m) continue;
+      if (/pay/i.test(pattern.source)) {
+        const recipient = m[1];
+        const amount = m[2];
+        const token = (m[3] || "STT").toUpperCase();
+        return { action: "pay", amount, token, recipient, confidence: 0.9 };
+      }
+      if (/send\|transfer/.test(pattern.source)) {
+        const action = (m[1] || "transfer").toLowerCase() as ParsedIntent["action"];
+        const amount = m[2];
+        const token = (m[3] || "STT").toUpperCase();
+        const recipient = m[4];
+        return { action: action as any, amount, token, recipient, confidence: 0.9 };
+      }
+      if (/balance/.test(pattern.source)) {
+        const token = ((m[1] as string) || "STT").toUpperCase();
+        // Use balance action; amount/recipient not needed
+        return { action: "balance", amount: "0", token, recipient: "", confidence: 0.9 } as any;
+      }
+    }
+    return null;
   }
 
   async parseIntent(userMessage: string): Promise<ParsedIntent | null> {
+    if (!hasApiKey || !this.model) {
+      return this.regexFallback(userMessage);
+    }
     try {
       const prompt = `
   You are a transaction intent parser. Parse the following message and extract transaction details.
@@ -48,20 +89,11 @@ export class GeminiParser {
   - Confidence should be 0.0 to 1.0
   - Return ONLY the JSON, no markdown formatting
   `;
-  
-      // 👇 Pass the prompt text properly to Gemini
+
       const result = await this.model.generateContent(prompt);
       const text = (await result.response).text();
-  
-      // Clean markdown if Gemini wrapped the response
-      const cleaned = text
-        .replace(/```json\n?/g, "")
-        .replace(/```\n?/g, "")
-        .trim();
-  
+      const cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
       const parsed = JSON.parse(cleaned);
-  
-      // Validate the structure and confidence threshold
       if (
         parsed.confidence < 0.7 ||
         !parsed.action ||
@@ -70,15 +102,18 @@ export class GeminiParser {
       ) {
         return null;
       }
-  
       return parsed;
     } catch (error) {
-      console.error("Error parsing intent with Gemini:", error);
-      return null;
+      console.error("Error parsing intent with Gemini, using fallback:", error);
+      return this.regexFallback(userMessage);
     }
-  }  
+  }
 
   async generateResponse(context: string, userMessage: string, senderAddress: string): Promise<string> {
+    if (!hasApiKey || !this.model) {
+      // Simple fallback text
+      return `You said: "${userMessage}". I can help send tokens or check balances.`;
+    }
     try {
       const prompt = `You are IntentSwap AI, a friendly blockchain transaction assistant. 
 

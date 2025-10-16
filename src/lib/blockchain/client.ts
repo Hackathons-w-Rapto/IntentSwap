@@ -40,12 +40,19 @@ export class BlockchainClient {
       const contract = await this.getTokenContract(tokenAddress);
       const decimals = await contract.decimals();
       const amountWei = ethers.parseUnits(amount, decimals);
-      
-      const gasEstimate = await contract.transfer.estimateGas(to, amountWei);
-      const gasPrice = await this.provider.getFeeData();
-      
-      const totalGas = gasEstimate * (gasPrice.gasPrice || BigInt(0));
-      return ethers.formatEther(totalGas);
+
+      // ethers v6: use contract.estimateGas.<fn> and include from override
+      const gasEstimate: bigint = await contract.estimateGas.transfer(
+        to,
+        amountWei,
+        { from }
+      );
+
+      const feeData = await this.provider.getFeeData();
+      const pricePerGas = feeData.gasPrice ?? feeData.maxFeePerGas ?? BigInt(0);
+
+      const totalCostWei = gasEstimate * pricePerGas;
+      return ethers.formatEther(totalCostWei);
     } catch (error) {
       console.error("Error estimating gas:", error);
       return "0.001"; // Default estimate

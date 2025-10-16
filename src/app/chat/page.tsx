@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useAccount } from "wagmi";
-import { TOKEN_ADDRESSES } from "@/lib/blockchain/config";
+import { TOKEN_ADDRESSES, SOMNIA_CONFIG } from "@/lib/blockchain/config";
 import ConnectWalletButton from "@/components/ConnectWalletButton";
 import ChatSidebar from "@/components/ChatSidebar";
 import { Separator } from "@/components/ui/separator";
@@ -144,6 +144,36 @@ export default function ChatPage() {
     const provider = new ethers.BrowserProvider(
       window.ethereum as unknown as ethers.Eip1193Provider
     );
+
+    // Ensure correct network (Somnia Testnet)
+    const network = await provider.getNetwork();
+    if (Number(network.chainId) !== SOMNIA_CONFIG.chainId) {
+      const chainIdHex = "0x" + SOMNIA_CONFIG.chainId.toString(16);
+      try {
+        await (window.ethereum as any).request({
+          method: "wallet_switchEthereumChain",
+          params: [{ chainId: chainIdHex }],
+        });
+      } catch (switchErr: any) {
+        if (switchErr?.code === 4902) {
+          await (window.ethereum as any).request({
+            method: "wallet_addEthereumChain",
+            params: [
+              {
+                chainId: chainIdHex,
+                chainName: SOMNIA_CONFIG.chainName,
+                nativeCurrency: SOMNIA_CONFIG.nativeCurrency,
+                rpcUrls: [SOMNIA_CONFIG.rpcUrl],
+                blockExplorerUrls: [SOMNIA_CONFIG.blockExplorer],
+              },
+            ],
+          });
+        } else {
+          throw switchErr;
+        }
+      }
+    }
+
     const signer = await provider.getSigner();
 
     const tokenAddress = TOKEN_ADDRESSES[token as keyof typeof TOKEN_ADDRESSES];
@@ -151,17 +181,38 @@ export default function ChatPage() {
     // ERC20 ABI for transfer
     const ERC20_ABI = [
       "function transfer(address to, uint256 amount) returns (bool)",
+      "function decimals() view returns (uint8)",
     ];
 
     // Create contract instance
     const contract = new ethers.Contract(tokenAddress, ERC20_ABI, signer);
 
-    // Convert amount to correct decimals (assuming 18 decimals)
-    const decimals = 18;
+    // Resolve and validate recipient
+    let to = recipient.trim();
+    if (!ethers.isAddress(to)) {
+      try {
+        const res = await fetch("/api/resolve-address", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ nameOrAddress: to }),
+        });
+        const data = await res.json();
+        if (data?.success && data?.address && ethers.isAddress(data.address)) {
+          to = data.address;
+        } else {
+          throw new Error("Invalid recipient address");
+        }
+      } catch {
+        throw new Error("Could not resolve recipient address");
+      }
+    }
+
+    // Convert amount to correct decimals
+    const decimals = await contract.decimals();
     const amountWei = ethers.parseUnits(amount, decimals);
 
     // Send transaction and get the hash
-    const tx = await contract.transfer(recipient, amountWei);
+    const tx = await contract.transfer(to, amountWei);
     return tx.hash;
   }
 
@@ -176,31 +227,30 @@ export default function ChatPage() {
     try {
       const response = await fetchIntentResponse(userInput, [...messages]);
       setIsTyping(false);
-      // console.log("Intent Response:", response);
-      if (
-        response.data &&
-        response.success &&
-        response.data.amount &&
-        response.data.token &&
-        response.data.recipient
-      ) {
+      // Interpret API response shape
+      if (response?.success && response?.intent && response?.actionResult) {
+        const data: TransactionConfirmation = {
+          amount: response.intent.amount,
+          token: response.intent.token || Defaulttoken,
+          recipient: response.actionResult.recipient || response.intent.recipient,
+          gasEstimate: response.actionResult.gasEstimate || "~",
+        };
+
         const userAddress = address || "";
-        const token = Defaulttoken || "STT";
+        const token = data.token || Defaulttoken;
         const balanceRes = await fetchBalance(userAddress, token);
-        let balanceText = "";
-        if (balanceRes.success && balanceRes.data) {
-          balanceText = `Your balance: ${balanceRes.data.balance} ${token}`;
-        } else {
-          balanceText = "Unable to fetch balance.";
-        }
+        const balanceText = balanceRes?.success && balanceRes?.balance
+          ? `Your balance: ${balanceRes.balance} ${token}`
+          : "Unable to fetch balance.";
+
         addMessage({
           sender: "agent",
-          text: `I understand you want to transfer ${response.data.amount} ${response.data.token} to ${response.data.recipient}.
+          text: `I understand you want to transfer ${data.amount} ${data.token} to ${data.recipient}.
 ${balanceText}\n\nPlease confirm the transaction details below:`,
           type: "confirmation",
         });
-        setPendingConfirmation(response.data);
-      } else if (response.response) {
+        setPendingConfirmation(data);
+      } else if (response?.response) {
         addMessage({
           sender: "agent",
           text: response.response,
