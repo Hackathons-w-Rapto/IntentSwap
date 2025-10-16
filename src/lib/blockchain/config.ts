@@ -1,10 +1,10 @@
 export const SOMNIA_CONFIG = {
-  chainId: 50311,
+  chainId: 50312,
   chainName: "Somnia Testnet",
   rpcUrl:
     process.env.NEXT_PUBLIC_SOMNIA_RPC_URL ||
     "https://dream-rpc.somnia.network",
-  blockExplorer: "https://explorer.somnia.network",
+  blockExplorer: "https://shannon-explorer.somnia.network/",
   nativeCurrency: {
     name: "STT",
     symbol: "STT",
