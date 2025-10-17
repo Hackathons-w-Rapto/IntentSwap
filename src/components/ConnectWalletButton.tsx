@@ -14,7 +14,7 @@ const ConnectBtn: React.FC<{ networks?: boolean }> = ({ networks }) => {
 
   const handleConnect = async (openConnectModal: () => void) => {
     try {
-      await openConnectModal();
+      openConnectModal();
     } catch (error) {
       console.error("Connection error:", error);
     }
