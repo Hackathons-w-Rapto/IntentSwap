@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { GeminiParser } from "@/lib/ai/gemini";
 import { BlockchainClient } from "@/lib/blockchain/client";
 import { SupportedToken, TOKEN_ADDRESSES } from "@/lib/blockchain/config";
+import { ethers } from "ethers";
 
 export async function POST(req: NextRequest) {
   try {
@@ -80,17 +81,31 @@ export async function POST(req: NextRequest) {
       case "pay": {
         // Resolve recipient
         const resolved = await blockchain.resolveAddress(intent.recipient);
+        
+        // If we can't resolve the address and it's not a valid address, ask for clarification
+        if (!resolved && !ethers.isAddress(intent.recipient)) {
+          aiResponse = `I couldn't resolve the recipient address "${intent.recipient}". Please provide a valid Ethereum address (starting with 0x) for the recipient.`;
+          actionResult = {
+            error: "Could not resolve recipient address",
+            recipient: intent.recipient,
+          };
+          break;
+        }
+        
         const recipient = resolved || intent.recipient;
         const tokenAddress =
           TOKEN_ADDRESSES[intent.token as SupportedToken] || null;
 
-        // Estimate gas
-        const gasEstimate = await blockchain.estimateGas(
-          senderAddress,
-          recipient,
-          intent.amount,
-          tokenAddress as string
-        );
+        // Estimate gas (only for ERC20 tokens, not native tokens)
+        let gasEstimate = "0.001"; // Default for native tokens
+        if (tokenAddress) {
+          gasEstimate = await blockchain.estimateGas(
+            senderAddress,
+            recipient,
+            intent.amount,
+            tokenAddress as string
+          );
+        }
 
         aiResponse = `You're sending ${intent.amount} ${intent.token} to ${recipient}.
 Estimated gas: ${gasEstimate} STT.
@@ -115,7 +130,7 @@ Would you like me to prepare the transaction?`;
           tokenAddress as string
         );
 
-        aiResponse = `Your current ${intent.token || "native"} balance is ${balance}.`;
+        aiResponse = `Your current ${intent.token || "STT"} balance is ${balance} ${intent.token || "STT"}.`;
         actionResult = { balance, token: intent.token || "STT" };
         break;
       }
