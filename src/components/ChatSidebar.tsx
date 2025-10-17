@@ -120,7 +120,7 @@ export default function ChatSidebar({
         <Button
           variant="ghost"
           size="icon"
-          className="hidden md:flex fixed top-4 left-4 z-40 bg-white"
+          className="hidden md:flex fixed top-4 left-4 z-40 "
           aria-label="Expand sidebar"
           onClick={() => setCollapsed(false)}
         >
@@ -230,7 +230,7 @@ export default function ChatSidebar({
         {/* Chat Section */}
         {!collapsed && (
           <>
-            <div className="flex-1 flex flex-col overflow-y-auto">
+            <div className="flex-1 flex flex-col bg-[#1e2019] overflow-y-auto">
               <div
                 className={`px-4 pt-4 pb-2 text-xs font-medium  uppercase tracking-wider`}
               >

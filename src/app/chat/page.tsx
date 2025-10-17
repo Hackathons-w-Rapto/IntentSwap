@@ -525,7 +525,7 @@ ${balanceText}\n\nPlease confirm the transaction details below:`,
   };
 
   return (
-    <div className="min-h-screen bg-black flex font-sans">
+    <div className="min-h-screen  flex font-sans">
       {/* Mobile Sidebar Overlay */}
       {showMobileSidebar && (
         <div
@@ -718,11 +718,11 @@ ${balanceText}\n\nPlease confirm the transaction details below:`,
       {/* Main Chat Area - Full width on mobile like ChatGPT */}
       <div
         className={cn(
-          "flex-1 flex flex-col transition-all duration-300 ease-in-out",
+          "flex-1 flex flex-col  transition-all duration-300 ease-in-out",
           // Mobile: Full width always (no margin)
-          "w-full",
+          "w-full"
           // Desktop: Account for sidebar width
-          sidebarCollapsed ? "md:ml-16" : "md:ml-64"
+          // sidebarCollapsed ? "md:ml-16" : "md:ml-64"
         )}
       >
         {/* Header */}
