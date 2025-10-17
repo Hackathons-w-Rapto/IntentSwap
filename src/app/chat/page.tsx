@@ -2,7 +2,6 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import {
-  ArrowLeft,
   Send,
   Copy,
   ExternalLink,
@@ -15,12 +14,12 @@ import {
   ChevronLeft,
   ChevronRight,
   Trash2,
+  Menu,
+  X,
 } from "lucide-react";
-import Link from "next/link";
 import { usePrivy } from "@privy-io/react-auth";
 import { TOKEN_ADDRESSES, SOMNIA_CONFIG } from "@/lib/blockchain/config";
 import ConnectWalletButton from "@/components/ConnectWalletButton";
-import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { FaMicrophone } from "react-icons/fa6";
@@ -64,6 +63,7 @@ export default function ChatPage() {
   const [pendingConfirmation, setPendingConfirmation] =
     useState<TransactionConfirmation | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [showMobileSidebar, setShowMobileSidebar] = useState(false);
   const [chatHistory, setChatHistory] = useState<ChatSession[]>([]);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -168,6 +168,23 @@ export default function ChatPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Set initial sidebar state based on screen size
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 768) {
+        setSidebarCollapsed(true);
+      }
+    };
+
+    // Set initial state
+    handleResize();
+
+    // Add resize listener
+    window.addEventListener("resize", handleResize);
+
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   // Load chat history on mount
   useEffect(() => {
@@ -509,23 +526,49 @@ ${balanceText}\n\nPlease confirm the transaction details below:`,
 
   return (
     <div className="min-h-screen bg-black flex font-sans">
-      {/* Collapsible Sidebar */}
+      {/* Mobile Sidebar Overlay */}
+      {showMobileSidebar && (
+        <div
+          className="fixed inset-0 bg-black/50 z-[55] md:hidden"
+          onClick={() => setShowMobileSidebar(false)}
+        />
+      )}
+
+      {/* Sidebar - ChatGPT Style Mobile */}
       <div
         className={cn(
-          "flex flex-col bg-gray-900 border-r border-gray-700 transition-all duration-300 ease-in-out fixed h-screen",
-          sidebarCollapsed ? "w-16" : "w-64"
+          "flex flex-col bg-gray-900 border-r border-gray-700 transition-all duration-300 ease-in-out",
+          // Mobile: Hidden by default, slide in from left when opened, higher z-index than header
+          "fixed left-0 top-0 h-screen z-[60]",
+          showMobileSidebar ? "translate-x-0 w-64" : "-translate-x-full w-64",
+          // Desktop: Normal sidebar behavior, lower z-index
+          "md:relative md:translate-x-0 md:z-40",
+          sidebarCollapsed ? "md:w-16" : "md:w-64"
         )}
       >
         {/* Sidebar Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-700">
-          {!sidebarCollapsed && (
+          {/* Show title on mobile always, on desktop only when not collapsed */}
+          {(showMobileSidebar || !sidebarCollapsed) && (
             <h2 className="text-lg font-semibold text-white">IntentSwap</h2>
           )}
+
+          {/* Mobile close button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowMobileSidebar(false)}
+            className="text-gray-400 hover:text-white hover:bg-gray-800 md:hidden"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+
+          {/* Desktop collapse button */}
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="text-gray-400 hover:text-white hover:bg-gray-800"
+            className="text-gray-400 hover:text-white hover:bg-gray-800 hidden md:flex"
           >
             {sidebarCollapsed ? (
               <ChevronRight className="h-4 w-4" />
@@ -541,57 +584,76 @@ ${balanceText}\n\nPlease confirm the transaction details below:`,
             variant="outline"
             onClick={createNewChat}
             className={cn(
-              "w-full bg-transparent border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white",
-              sidebarCollapsed && "px-2"
+              "w-full justify-start bg-transparent border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white",
+              sidebarCollapsed && "md:justify-center md:px-2" // Center icon when collapsed on desktop
             )}
           >
-            <Plus className="h-4 w-4" />
-            {!sidebarCollapsed && <span className="ml-2">New Chat</span>}
+            <Plus className="h-4 w-4 flex-shrink-0" />
+            {/* Show text on mobile always, on desktop only when not collapsed */}
+            <span
+              className={cn(
+                "ml-2",
+                sidebarCollapsed && "md:hidden" // Hide text on desktop when collapsed
+              )}
+            >
+              New Chat
+            </span>
           </Button>
         </div>
 
         {/* Chat History */}
         <div className="flex-1 px-2 overflow-y-auto">
-          {!sidebarCollapsed && (
-            <div className="space-y-2">
-              {chatHistory.map((chat) => (
+          {/* Mobile: Always show full list, Desktop: Show full when not collapsed */}
+          <div
+            className={cn(
+              "space-y-2",
+              "md:hidden",
+              !sidebarCollapsed && "md:block"
+            )}
+          >
+            {chatHistory.map((chat) => (
+              <div
+                key={chat.id}
+                className={cn(
+                  "group relative flex items-center w-full text-left text-gray-300 hover:bg-gray-800 hover:text-white rounded-lg p-3 transition-colors",
+                  currentChatId === chat.id && "bg-gray-800 text-white"
+                )}
+              >
                 <div
-                  key={chat.id}
-                  className={cn(
-                    "group relative flex items-center w-full text-left text-gray-300 hover:bg-gray-800 hover:text-white rounded-lg p-3 transition-colors",
-                    currentChatId === chat.id && "bg-gray-800 text-white"
-                  )}
+                  className="flex items-center flex-1 min-w-0 cursor-pointer"
+                  onClick={() => {
+                    switchToChat(chat.id);
+                    // Close mobile sidebar when selecting a chat
+                    setShowMobileSidebar(false);
+                  }}
                 >
-                  <div
-                    className="flex items-center flex-1 min-w-0 cursor-pointer"
-                    onClick={() => switchToChat(chat.id)}
-                  >
-                    <MessageSquare className="h-4 w-4 mr-2 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm truncate">{chat.title}</p>
-                      <p className="text-xs text-gray-500 truncate">
-                        {chat.timestamp.toLocaleDateString()}
-                      </p>
-                    </div>
+                  <MessageSquare className="h-4 w-4 mr-2 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm truncate">{chat.title}</p>
+                    <p className="text-xs text-gray-500 truncate">
+                      {chat.timestamp.toLocaleDateString()}
+                    </p>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteChat(chat.id);
-                    }}
-                    className="opacity-0 group-hover:opacity-100 ml-2 h-6 w-6 p-0 text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all duration-200"
-                    title="Delete chat"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
                 </div>
-              ))}
-            </div>
-          )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteChat(chat.id);
+                  }}
+                  className="opacity-0 group-hover:opacity-100 ml-2 h-6 w-6 p-0 text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all duration-200"
+                  title="Delete chat"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop collapsed view - only icons */}
           {sidebarCollapsed && (
-            <div className="space-y-2 py-2">
+            <div className="space-y-2 py-2 hidden md:block">
               {chatHistory.map((chat) => (
                 <Button
                   key={chat.id}
@@ -616,63 +678,90 @@ ${balanceText}\n\nPlease confirm the transaction details below:`,
             variant="ghost"
             className={cn(
               "w-full justify-start text-gray-300 hover:bg-gray-800 hover:text-white",
-              sidebarCollapsed && "px-2"
+              sidebarCollapsed && "md:px-2"
             )}
           >
             <Settings className="h-4 w-4" />
-            {!sidebarCollapsed && <span className="ml-2">Settings</span>}
+            {/* Show text on mobile always, on desktop only when not collapsed */}
+            <span
+              className={cn(
+                "ml-2",
+                "md:hidden",
+                !sidebarCollapsed && "md:inline"
+              )}
+            >
+              Settings
+            </span>
           </Button>
           <Button
             variant="ghost"
             className={cn(
               "w-full justify-start text-gray-300 hover:bg-gray-800 hover:text-white",
-              sidebarCollapsed && "px-2"
+              sidebarCollapsed && "md:px-2"
             )}
           >
             <LogOut className="h-4 w-4" />
-            {!sidebarCollapsed && <span className="ml-2">Sign Out</span>}
+            {/* Show text on mobile always, on desktop only when not collapsed */}
+            <span
+              className={cn(
+                "ml-2",
+                "md:hidden",
+                !sidebarCollapsed && "md:inline"
+              )}
+            >
+              Sign Out
+            </span>
           </Button>
         </div>
       </div>
 
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col">
+      {/* Main Chat Area - Full width on mobile like ChatGPT */}
+      <div
+        className={cn(
+          "flex-1 flex flex-col transition-all duration-300 ease-in-out",
+          // Mobile: Full width always (no margin)
+          "w-full",
+          // Desktop: Account for sidebar width
+          sidebarCollapsed ? "md:ml-16" : "md:ml-64"
+        )}
+      >
         {/* Header */}
-        <header className="backdrop-blur-sm p-4 fixed w-full z-50">
-          <div className="max-w-5xl mx-auto py-0.5 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link
-                href="/"
-                className="text-gray-400 hover:text-white transition-colors"
+        <header className="backdrop-blur-sm border-b border-gray-800/50 p-3 md:p-4 sticky top-0 z-50 bg-black/80">
+          <div className=" mx-auto w-full flex items-center justify-between">
+            {/* Left side - Mobile menu + App name like ChatGPT */}
+            <div className="flex items-center gap-3">
+              {/* Mobile menu button - like ChatGPT */}
+              <button
+                onClick={() => setShowMobileSidebar(true)}
+                className="md:hidden p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
               >
-                <ArrowLeft className="w-6 h-6" />
-              </Link>
-              <div>
-                <h1 className="text-xl font-bold text-white">
-                  IntentSwap Chat
-                </h1>
-                <p className="text-sm text-gray-400">
-                  AI-powered token transfers
-                </p>
-              </div>
+                <Menu className="h-5 w-5" />
+              </button>
+
+              <h1 className="text-base md:text-lg font-semibold text-white">
+                IntentSwap
+              </h1>
             </div>
-            <div className="flex items-center gap-2">
+
+            {/* Right side - Wallet connection */}
+            <div className="flex items-center gap-3">
               {authenticated ? (
-                <>
-                  <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                  <span className="text-sm text-gray-400">Connected</span>
-                </>
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-[#1E3DFF] via-[#7A1EFF] to-[#FF1E99] shadow-lg hover:shadow-xl hover:shadow-purple-500/25 transition-all duration-300 border border-white/10 backdrop-blur-sm">
+                  <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse shadow-lg shadow-green-400/50"></span>
+                  <span className="text-xs md:text-sm text-white font-medium hidden sm:block">
+                    Connected
+                  </span>
+                </div>
               ) : (
                 <ConnectWalletButton />
               )}
             </div>
           </div>
-          <Separator />
         </header>
 
         {/* Chat Container */}
-        <div className={`flex-1 flex flex-col max-w-5xl mx-auto w-full p-4 ${messages.length > 0 ? 'pt-24' : 'pt-48'}`}>
-          <div className="flex-1 overflow-y-auto space-y-4 mb-6 max-h-[calc(100vh-200px)]">
+        <div className="flex-1 flex flex-col max-w-5xl mx-auto w-full p-2 md:p-4">
+          <div className="flex-1 overflow-y-auto space-y-4 mb-6 max-h-[calc(100vh-200px)] px-2 md:px-0">
             {messages.map((msg) => (
               <div
                 key={msg.id}
@@ -681,13 +770,13 @@ ${balanceText}\n\nPlease confirm the transaction details below:`,
                 }`}
               >
                 <div
-                  className={`max-w-[80%] ${
+                  className={`max-w-[85%] md:max-w-[80%] lg:max-w-[70%] ${
                     msg.sender === "user" ? "order-2" : ""
                   }`}
                 >
                   {/* Message bubble */}
                   <div
-                    className={`px-6 py-3 rounded-2xl relative ${
+                    className={`px-3 md:px-6 py-2 md:py-3 rounded-2xl relative text-sm md:text-base ${
                       msg.sender === "user"
                         ? "bg-gradient-to-r from-[#1E3DFF] via-[#7A1EFF] to-[#FF1E99] text-white"
                         : msg.type === "error"
@@ -699,14 +788,14 @@ ${balanceText}\n\nPlease confirm the transaction details below:`,
                         : "bg-gray-900 text-white border border-gray-600"
                     }`}
                   >
-                    <p className="whitespace-pre-line  leading-relaxed ml-1">
+                    <p className="whitespace-pre-line leading-relaxed ml-1">
                       {msg.text}
                     </p>
 
                     {/* Transaction details */}
                     {msg.transactionData && (
-                      <div className="mt-3 p-3 bg-black/30 rounded-lg border border-gray-600">
-                        <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div className="mt-3 p-2 md:p-3 bg-black/30 rounded-lg border border-gray-600">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs md:text-sm">
                           <div>
                             <span className="text-gray-400">Amount:</span>
                             <span className="ml-2 font-semibold">
@@ -716,7 +805,7 @@ ${balanceText}\n\nPlease confirm the transaction details below:`,
                           </div>
                           <div>
                             <span className="text-gray-400">To:</span>
-                            <span className="ml-2 font-mono text-xs">
+                            <span className="ml-2 font-mono text-xs break-all">
                               {msg.transactionData.recipient}
                             </span>
                           </div>
@@ -801,95 +890,100 @@ ${balanceText}\n\nPlease confirm the transaction details below:`,
 
             <div ref={messagesEndRef} />
           </div>
-
           {/* Confirmation Panel */}
           {pendingConfirmation && (
-            <div className="mb-4 p-4 bg-yellow-900/20 border border-yellow-500 rounded-xl">
-              <h3 className="text-yellow-400 font-semibold mb-3">
+            <div className="mb-4 p-3 md:p-4 bg-yellow-900/20 border border-yellow-500 rounded-xl mx-2 md:mx-0">
+              <h3 className="text-yellow-400 font-semibold mb-3 text-sm md:text-base">
                 Confirm Transaction
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
                 <div className="bg-black/50 p-3 rounded-lg">
-                  <p className="text-gray-400 text-sm">Amount</p>
-                  <p className="text-white font-semibold">
+                  <p className="text-gray-400 text-xs md:text-sm">Amount</p>
+                  <p className="text-white font-semibold text-sm md:text-base">
                     {pendingConfirmation.amount} {pendingConfirmation.token}
                   </p>
                 </div>
                 <div className="bg-black/50 p-3 rounded-lg">
-                  <p className="text-gray-400 text-sm">Recipient</p>
-                  <p className="text-white font-semibold text-sm">
+                  <p className="text-gray-400 text-xs md:text-sm">Recipient</p>
+                  <p className="text-white font-semibold text-xs md:text-sm break-all">
                     {pendingConfirmation.recipient}
                   </p>
                 </div>
                 <div className="bg-black/50 p-3 rounded-lg">
-                  <p className="text-gray-400 text-sm">Gas Fee</p>
-                  <p className="text-white font-semibold">
+                  <p className="text-gray-400 text-xs md:text-sm">Gas Fee</p>
+                  <p className="text-white font-semibold text-sm md:text-base">
                     {pendingConfirmation.gasEstimate}
                   </p>
                 </div>
               </div>
-              <div className="flex gap-3">
+              <div className="flex flex-col md:flex-row gap-3">
                 <button
                   onClick={confirmTransaction}
-                  className="flex-1 bg-gradient-to-r from-green-600 to-green-500 text-white py-2 px-4 rounded-lg font-semibold hover:from-green-700 hover:to-green-600 transition-all"
+                  className="flex-1 bg-gradient-to-r from-green-600 to-green-500 text-white py-2 px-4 rounded-lg font-semibold hover:from-green-700 hover:to-green-600 transition-all text-sm md:text-base"
                 >
                   Confirm & Send
                 </button>
                 <button
                   onClick={cancelTransaction}
-                  className="flex-1 bg-gray-700 text-white py-2 px-4 rounded-lg font-semibold hover:bg-gray-600 transition-all"
+                  className="flex-1 bg-gray-700 text-white py-2 px-4 rounded-lg font-semibold hover:bg-gray-600 transition-all text-sm md:text-base"
                 >
                   Cancel
                 </button>
               </div>
             </div>
           )}
+          {/* Input */}{" "}
+          <div className="relative flex flex-col space-y-6 items-center justify-center">
+            {/* Input Container */}
+            <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center w-full max-w-4xl mx-auto px-4">
+              {/* Input Field with Microphone */}
+              <div className="flex-1 relative">
+                <input
+                  type="text"
+                  className="w-full px-4 py-3 pr-12 rounded-2xl border border-gray-600 bg-gray-900/50 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all text-base"
+                  placeholder="Type your command... (e.g., 'Send 50 STT to Alice')"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+                  disabled={isTyping || !!pendingConfirmation}
+                />
+                <button
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                  type="button"
+                  title="Voice input"
+                >
+                  <FaMicrophone className="w-4 h-4" />
+                </button>
+              </div>
 
-          {/* Input */}
-          <div className="relative flex flex-col space-y-8 items-center justify-center">
-          <div className="flex gap-3 items-end absolute bottom-6 left-0 right-0 mx-auto md:w-[900px]">
-            <div className="flex-1 relative">
-              <input
-                type="text"
-                className="w-full px-4 py-3 pr-12 rounded-2xl border border-gray-600 bg-gray-900/50 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-                placeholder="Type your command... (e.g., 'Send 50 STT to Alice')"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-                disabled={isTyping || !!pendingConfirmation}
-              />
-              <FaMicrophone
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 cursor-pointer"
-                style={{ pointerEvents: "auto" }}
-              />
-            </div>
-            <button
-              onClick={sendMessage}
-              disabled={!input.trim() || isTyping || !!pendingConfirmation}
-              className="px-6 py-3 rounded-2xl font-semibold bg-gradient-to-r from-[#1E3DFF] via-[#7A1EFF] to-[#FF1E99] text-white shadow-lg hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 transition-all flex items-center gap-2"
-            >
-              <Send className="w-4 h-4" />
-              Send
-            </button>
-          </div>
-
-          {/* Quick suggestions */}
-          <div className="mt-3 flex flex-wrap gap-2">
-            {[
-              "Send 50 STT to Alice",
-              "Transfer 100 tokens to 0x123...",
-              "Pay Bob 25 STT",
-            ].map((suggestion, idx) => (
+              {/* Send Button */}
               <button
-                key={idx}
-                onClick={() => setInput(suggestion)}
-                className="text-sm px-3 py-1 bg-gray-800 text-gray-300 rounded-full hover:bg-gray-700 hover:text-white transition-all"
-                disabled={isTyping || !!pendingConfirmation}
+                onClick={sendMessage}
+                disabled={!input.trim() || isTyping || !!pendingConfirmation}
+                className="px-6 py-3 rounded-2xl font-semibold bg-gradient-to-r from-[#1E3DFF] via-[#7A1EFF] to-[#FF1E99] text-white shadow-lg hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 transition-all flex items-center justify-center gap-2 text-base sm:w-auto w-full"
               >
-                {suggestion}
+                <Send className="w-4 h-4" />
+                <span>Send</span>
               </button>
-            ))}
-          </div>
+            </div>
+
+            {/* Quick Suggestions */}
+            <div className="flex md:flex-row-reverse gap-2 justify-center px-4 max-w-4xl mx-auto">
+              {[
+                "Send 50 STT to Alice",
+                "Transfer 100 tokens to 0x123...",
+                "Pay Bob 25 STT",
+              ].map((suggestion, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setInput(suggestion)}
+                  className="text-sm px-3 py-1.5 bg-gray-800/80 text-gray-300 rounded-full hover:bg-gray-700 hover:text-white transition-all border border-gray-700/50 hover:border-gray-600"
+                  disabled={isTyping || !!pendingConfirmation}
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>

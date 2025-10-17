@@ -17,11 +17,11 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-black flex flex-col items-center justify-center font-sans relative overflow-x-hidden">
       {/* <div className="absolute inset-0 bg-gradient-to-br from-black via-purple-950/20 to-black" /> */}
-      <header className="w-full flex justify-between items-center px-4 md:px-8 py-6 border-b border-white">
-        <h1 className="text-white text-lg md:text-2xl font-bold tracking-wide">
-          INTENTSWAP
+      <header className="w-full flex justify-between items-center px-4 md:px-8 py-4 border-b border-gray-800/50 bg-black/80 backdrop-blur-sm">
+        <h1 className="text-white text-lg font-semibold tracking-wide">
+          IntentSwap
         </h1>
-        <div className="flex gap-4 items-center">
+        <div className="flex items-center">
           <ConnectWalletButton />
         </div>
       </header>
