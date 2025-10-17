@@ -80,9 +80,22 @@ export async function POST(req: NextRequest) {
       case "pay": {
         // Resolve recipient
         const resolved = await blockchain.resolveAddress(intent.recipient);
-        const recipient = resolved || intent.recipient;
-        const tokenAddress =
-          TOKEN_ADDRESSES[intent.token as SupportedToken] || null;
+        
+        // If we can't resolve the address (e.g., it's a name like "Alice")
+        if (!resolved) {
+          aiResponse = `I understand you want to send ${intent.amount} ${intent.token} to "${intent.recipient}", but I need the actual wallet address to proceed. Could you please provide the recipient's wallet address?`;
+          actionResult = {
+            needsAddress: true,
+            amount: intent.amount,
+            token: intent.token,
+            recipientName: intent.recipient,
+          };
+          break;
+        }
+
+        const recipient = resolved;
+        // For STT (native token), we don't need a token address
+        const tokenAddress = intent.token === "STT" ? null : TOKEN_ADDRESSES[intent.token as SupportedToken] || null;
 
         // Estimate gas
         const gasEstimate = await blockchain.estimateGas(
@@ -108,14 +121,14 @@ Would you like me to prepare the transaction?`;
       case "balance":
       case "check":
       case "balance_check": {
-        const tokenAddress =
-          TOKEN_ADDRESSES[intent.token as SupportedToken] || null;
+        // For STT (native token), we don't need a token address
+        const tokenAddress = intent.token === "STT" ? null : TOKEN_ADDRESSES[intent.token as SupportedToken] || null;
         const balance = await blockchain.getBalance(
           senderAddress,
           tokenAddress as string
         );
 
-        aiResponse = `Your current ${intent.token || "native"} balance is ${balance}.`;
+        aiResponse = `Your current ${intent.token || "STT"} balance is ${balance}.`;
         actionResult = { balance, token: intent.token || "STT" };
         break;
       }

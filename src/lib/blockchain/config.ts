@@ -14,9 +14,8 @@ export const SOMNIA_CONFIG = {
 };
 
 export const TOKEN_ADDRESSES = {
-  STT:
-    process.env.NEXT_PUBLIC_STT_TOKEN_ADDRESS ||
-    "0x7f89af8b3c0A68F536Ff20433927F4573CF001A3",
+  // STT is the native token on Somnia testnet, not an ERC20 token
+  // If you need ERC20 tokens, add them here with their contract addresses
 };
 export type SupportedToken = keyof typeof TOKEN_ADDRESSES;
 // ERC20 ABI for token transfers
