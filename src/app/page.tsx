@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import ConnectWalletButton from "@/components/ConnectWalletButton";
-import { useAccount } from "wagmi";
+import { usePrivy } from "@privy-io/react-auth";
 import { useState } from "react";
 import Features from "@/components/Features";
 import { SiProbot } from "react-icons/si";
@@ -11,7 +11,7 @@ import { SlMagnifier } from "react-icons/sl";
 import AnimatedWordType from "@/components/AnimatedWordType";
 
 export default function Home() {
-  const { isConnected } = useAccount();
+  const { authenticated } = usePrivy();
   const [showConnectMsg, setShowConnectMsg] = useState(false);
 
   return (
@@ -50,7 +50,7 @@ export default function Home() {
               <button
                 className="mt-2 px-8 py-4 text-xl font-bold rounded cursor-pointer border-2 border-white bg-gradient-to-r from-[#1E3DFF] via-[#7A1EFF] to-[#FF1E99] text-white shadow-lg hover:scale-105 transition-transform"
                 onClick={() => {
-                  if (isConnected) {
+                  if (authenticated) {
                     window.location.href = "/chat";
                   } else {
                     setShowConnectMsg(true);

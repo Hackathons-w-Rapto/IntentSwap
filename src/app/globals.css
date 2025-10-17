@@ -1,6 +1,13 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* Force load preloaded fonts to prevent warnings */
+@font-face {
+  font-family: "KHTeka-Medium";
+  src: url("https://fonts.reown.com/KHTeka-Medium.woff2") format("woff2");
+  font-display: swap;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

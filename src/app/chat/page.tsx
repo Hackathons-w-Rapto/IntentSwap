@@ -16,7 +16,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import Link from "next/link";
-import { useAccount } from "wagmi";
+import { usePrivy } from "@privy-io/react-auth";
 import { TOKEN_ADDRESSES, SOMNIA_CONFIG } from "@/lib/blockchain/config";
 import ConnectWalletButton from "@/components/ConnectWalletButton";
 import { Separator } from "@/components/ui/separator";
@@ -56,7 +56,8 @@ interface ChatSession {
 }
 export default function ChatPage() {
   const Defaulttoken = "STT";
-  const { isConnected, address } = useAccount();
+  const { authenticated, user } = usePrivy();
+  const address = user?.wallet?.address;
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
@@ -626,7 +627,7 @@ ${balanceText}\n\nPlease confirm the transaction details below:`,
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {isConnected ? (
+              {authenticated ? (
                 <>
                   <span className="w-2 h-2 bg-green-500 rounded-full"></span>
                   <span className="text-sm text-gray-400">Connected</span>
