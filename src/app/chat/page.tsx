@@ -512,7 +512,7 @@ ${balanceText}\n\nPlease confirm the transaction details below:`,
       {/* Collapsible Sidebar */}
       <div
         className={cn(
-          "flex flex-col bg-gray-900 border-r border-gray-700 transition-all duration-300 ease-in-out",
+          "flex flex-col bg-gray-900 border-r border-gray-700 transition-all duration-300 ease-in-out fixed h-screen",
           sidebarCollapsed ? "w-16" : "w-64"
         )}
       >
@@ -638,7 +638,7 @@ ${balanceText}\n\nPlease confirm the transaction details below:`,
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col">
         {/* Header */}
-        <header className=" backdrop-blur-sm p-4">
+        <header className="backdrop-blur-sm p-4 fixed w-full z-50">
           <div className="max-w-5xl mx-auto py-0.5 flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Link
@@ -671,7 +671,7 @@ ${balanceText}\n\nPlease confirm the transaction details below:`,
         </header>
 
         {/* Chat Container */}
-        <div className="flex-1 flex flex-col max-w-5xl mx-auto w-full p-4">
+        <div className={`flex-1 flex flex-col max-w-5xl mx-auto w-full p-4 ${messages.length > 0 ? 'pt-24' : 'pt-48'}`}>
           <div className="flex-1 overflow-y-auto space-y-4 mb-6 max-h-[calc(100vh-200px)]">
             {messages.map((msg) => (
               <div
@@ -846,7 +846,8 @@ ${balanceText}\n\nPlease confirm the transaction details below:`,
           )}
 
           {/* Input */}
-          <div className="flex gap-3 items-end">
+          <div className="relative flex flex-col space-y-8 items-center justify-center">
+          <div className="flex gap-3 items-end absolute bottom-6 left-0 right-0 mx-auto md:w-[900px]">
             <div className="flex-1 relative">
               <input
                 type="text"
@@ -888,6 +889,7 @@ ${balanceText}\n\nPlease confirm the transaction details below:`,
                 {suggestion}
               </button>
             ))}
+          </div>
           </div>
         </div>
       </div>
