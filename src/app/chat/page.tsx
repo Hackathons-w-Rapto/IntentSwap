@@ -176,18 +176,7 @@ export default function ChatPage() {
 
     const signer = await provider.getSigner();
 
-    const tokenAddress = TOKEN_ADDRESSES[token as keyof typeof TOKEN_ADDRESSES];
-
-    // ERC20 ABI for transfer
-    const ERC20_ABI = [
-      "function transfer(address to, uint256 amount) returns (bool)",
-      "function decimals() view returns (uint8)",
-    ];
-
-    // Create contract instance
-    const contract = new ethers.Contract(tokenAddress, ERC20_ABI, signer);
-
-    // Resolve and validate recipient
+    // Resolve and validate recipient first
     let to = recipient.trim();
     if (!ethers.isAddress(to)) {
       try {
@@ -206,6 +195,31 @@ export default function ChatPage() {
         throw new Error("Could not resolve recipient address");
       }
     }
+
+    // Handle native token (STT) vs ERC20 token
+    if (token === "STT") {
+      // Native token transfer
+      const amountWei = ethers.parseEther(amount);
+      const tx = await signer.sendTransaction({
+        to,
+        value: amountWei,
+      });
+      return tx.hash;
+    }
+
+    const tokenAddress = TOKEN_ADDRESSES[token as keyof typeof TOKEN_ADDRESSES];
+    if (!tokenAddress) {
+      throw new Error(`Token ${token} not supported`);
+    }
+
+    // ERC20 ABI for transfer
+    const ERC20_ABI = [
+      "function transfer(address to, uint256 amount) returns (bool)",
+      "function decimals() view returns (uint8)",
+    ];
+
+    // Create contract instance
+    const contract = new ethers.Contract(tokenAddress, ERC20_ABI, signer);
 
     // Convert amount to correct decimals
     const decimals = await contract.decimals();

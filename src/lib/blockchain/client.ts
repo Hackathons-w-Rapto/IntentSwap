@@ -19,7 +19,7 @@ export class BlockchainClient {
   async getBalance(address: string, tokenAddress?: string): Promise<string> {
     try {
       if (!tokenAddress) {
-        // Get native balance
+        // Get native balance (STT is the native token on Somnia testnet)
         const balance = await this.provider.getBalance(address);
         return ethers.formatEther(balance);
       } else {
@@ -35,24 +35,41 @@ export class BlockchainClient {
     }
   }
 
-  async estimateGas(from: string, to: string, amount: string, tokenAddress: string): Promise<string> {
+  async estimateGas(from: string, to: string, amount: string, tokenAddress?: string): Promise<string> {
     try {
-      const contract = await this.getTokenContract(tokenAddress);
-      const decimals = await contract.decimals();
-      const amountWei = ethers.parseUnits(amount, decimals);
+      if (!tokenAddress) {
+        // Native token transfer (STT)
+        const amountWei = ethers.parseEther(amount);
+        const gasEstimate = await this.provider.estimateGas({
+          from,
+          to,
+          value: amountWei,
+        });
 
-      // ethers v6: use contract.estimateGas.<fn> and include from override
-      const gasEstimate: bigint = await contract.estimateGas.transfer(
-        to,
-        amountWei,
-        { from }
-      );
+        const feeData = await this.provider.getFeeData();
+        const pricePerGas = feeData.gasPrice ?? feeData.maxFeePerGas ?? BigInt(0);
 
-      const feeData = await this.provider.getFeeData();
-      const pricePerGas = feeData.gasPrice ?? feeData.maxFeePerGas ?? BigInt(0);
+        const totalCostWei = gasEstimate * pricePerGas;
+        return ethers.formatEther(totalCostWei);
+      } else {
+        // ERC20 token transfer
+        const contract = await this.getTokenContract(tokenAddress);
+        const decimals = await contract.decimals();
+        const amountWei = ethers.parseUnits(amount, decimals);
 
-      const totalCostWei = gasEstimate * pricePerGas;
-      return ethers.formatEther(totalCostWei);
+        // ethers v6: use contract.transfer.estimateGas() and include from override
+        const gasEstimate: bigint = await contract.transfer.estimateGas(
+          to,
+          amountWei,
+          { from }
+        );
+
+        const feeData = await this.provider.getFeeData();
+        const pricePerGas = feeData.gasPrice ?? feeData.maxFeePerGas ?? BigInt(0);
+
+        const totalCostWei = gasEstimate * pricePerGas;
+        return ethers.formatEther(totalCostWei);
+      }
     } catch (error) {
       console.error("Error estimating gas:", error);
       return "0.001"; // Default estimate
@@ -90,10 +107,9 @@ export class BlockchainClient {
         return nameOrAddress;
       }
 
-      // Try ENS resolution (if you have ENS on Somnia)
-      // For now, return null if not a valid address
-      // You can implement custom name resolution here
-      
+      // For names (like "Alice", "Bob"), we cannot resolve them automatically
+      // The AI should ask the user for the actual address
+      // This will trigger the error handling in the frontend to ask for clarification
       return null;
     } catch (error) {
       console.error("Error resolving address:", error);
