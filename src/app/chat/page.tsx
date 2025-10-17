@@ -14,6 +14,7 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
+  Trash2,
 } from "lucide-react";
 import Link from "next/link";
 import { usePrivy } from "@privy-io/react-auth";
@@ -21,7 +22,6 @@ import { TOKEN_ADDRESSES, SOMNIA_CONFIG } from "@/lib/blockchain/config";
 import ConnectWalletButton from "@/components/ConnectWalletButton";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { FaMicrophone } from "react-icons/fa6";
 import { ethers } from "ethers";
@@ -153,6 +153,18 @@ export default function ChatPage() {
     }
   };
 
+  // Delete chat session
+  const deleteChat = (chatId: string) => {
+    const updatedHistory = chatHistory.filter((chat) => chat.id !== chatId);
+    setChatHistory(updatedHistory);
+    saveChatSessions(updatedHistory);
+
+    // If we're deleting the current chat, create a new one
+    if (chatId === currentChatId) {
+      createNewChat();
+    }
+  };
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -162,11 +174,12 @@ export default function ChatPage() {
     const loadedSessions = loadChatSessions();
     setChatHistory(loadedSessions);
 
-    // Create new chat if no current chat
+    // Create new chat if no current chat (only run once on mount)
     if (!currentChatId) {
       createNewChat();
     }
-  }, [currentChatId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependency array - only run once on mount
 
   // Save current chat whenever messages change
   useEffect(() => {
@@ -177,28 +190,30 @@ export default function ChatPage() {
 
       const title = generateChatTitle(userMessages[0].text);
 
-      const updatedHistory = [...chatHistory];
-      const existingIndex = updatedHistory.findIndex(
-        (chat) => chat.id === currentChatId
-      );
+      setChatHistory((prevHistory) => {
+        const updatedHistory = [...prevHistory];
+        const existingIndex = updatedHistory.findIndex(
+          (chat) => chat.id === currentChatId
+        );
 
-      const chatSession: ChatSession = {
-        id: currentChatId,
-        title,
-        timestamp: new Date(),
-        messages: messages,
-      };
+        const chatSession: ChatSession = {
+          id: currentChatId,
+          title,
+          timestamp: new Date(),
+          messages: messages,
+        };
 
-      if (existingIndex >= 0) {
-        updatedHistory[existingIndex] = chatSession;
-      } else {
-        updatedHistory.unshift(chatSession); // Add to beginning
-      }
+        if (existingIndex >= 0) {
+          updatedHistory[existingIndex] = chatSession;
+        } else {
+          updatedHistory.unshift(chatSession); // Add to beginning
+        }
 
-      setChatHistory(updatedHistory);
-      saveChatSessions(updatedHistory);
+        saveChatSessions(updatedHistory);
+        return updatedHistory;
+      });
     }
-  }, [messages, currentChatId, chatHistory]);
+  }, [messages, currentChatId]);
 
   async function fetchIntentResponse(message: string, context: Message[]) {
     const res = await fetch("/api/chat", {
@@ -536,27 +551,42 @@ ${balanceText}\n\nPlease confirm the transaction details below:`,
         </div>
 
         {/* Chat History */}
-        <ScrollArea className="flex-1 px-2">
+        <div className="flex-1 px-2 overflow-y-auto">
           {!sidebarCollapsed && (
             <div className="space-y-2">
               {chatHistory.map((chat) => (
-                <Button
+                <div
                   key={chat.id}
-                  variant="ghost"
-                  onClick={() => switchToChat(chat.id)}
                   className={cn(
-                    "w-full justify-start text-left text-gray-300 hover:bg-gray-800 hover:text-white h-auto p-3",
+                    "group relative flex items-center w-full text-left text-gray-300 hover:bg-gray-800 hover:text-white rounded-lg p-3 transition-colors",
                     currentChatId === chat.id && "bg-gray-800 text-white"
                   )}
                 >
-                  <MessageSquare className="h-4 w-4 mr-2 flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm truncate">{chat.title}</p>
-                    <p className="text-xs text-gray-500 truncate">
-                      {chat.timestamp.toLocaleDateString()}
-                    </p>
+                  <div
+                    className="flex items-center flex-1 min-w-0 cursor-pointer"
+                    onClick={() => switchToChat(chat.id)}
+                  >
+                    <MessageSquare className="h-4 w-4 mr-2 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm truncate">{chat.title}</p>
+                      <p className="text-xs text-gray-500 truncate">
+                        {chat.timestamp.toLocaleDateString()}
+                      </p>
+                    </div>
                   </div>
-                </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteChat(chat.id);
+                    }}
+                    className="opacity-0 group-hover:opacity-100 ml-2 h-6 w-6 p-0 text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all duration-200"
+                    title="Delete chat"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
               ))}
             </div>
           )}
@@ -578,7 +608,7 @@ ${balanceText}\n\nPlease confirm the transaction details below:`,
               ))}
             </div>
           )}
-        </ScrollArea>
+        </div>
 
         {/* Sidebar Footer */}
         <div className="border-t border-gray-700 p-4 space-y-2">

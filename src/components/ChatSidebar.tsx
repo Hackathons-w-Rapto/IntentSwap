@@ -5,66 +5,113 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { MessageSquare, Home, Settings, Menu, X, Trash2 } from "lucide-react";
+import { MessageSquare, Home, Settings, Menu, Trash2 } from "lucide-react";
 import { GoSidebarCollapse } from "react-icons/go";
 import ConnectWalletButton from "./ConnectWalletButton";
-import { usePathname } from "next/navigation";
 
-// Placeholder for chat list
-function ChatList({ isCollapsed }: { isCollapsed: boolean }) {
-  const pathname = usePathname();
-  // Replace with your chat logic
-  const chats = [
-    { id: "1", title: "Alice" },
-    { id: "2", title: "Bob" },
-  ];
+interface ChatSession {
+  id: string;
+  title: string;
+  timestamp: Date;
+  messages: any[];
+}
+
+interface ChatListProps {
+  isCollapsed: boolean;
+  chatHistory: ChatSession[];
+  currentChatId: string | null;
+  onSwitchChat: (chatId: string) => void;
+  onDeleteChat: (chatId: string) => void;
+  onNewChat: () => void;
+}
+
+function ChatList({ 
+  isCollapsed, 
+  chatHistory, 
+  currentChatId, 
+  onSwitchChat, 
+  onDeleteChat,
+  onNewChat 
+}: ChatListProps) {
+  const handleDeleteClick = (e: React.MouseEvent, chatId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onDeleteChat(chatId);
+  };
+
   return (
     <div className="flex flex-col gap-1">
-      {chats.map((chat) => {
-        const isActive = pathname === `/chat/${chat.id}`;
+      {/* New Chat Button */}
+      <Button
+        onClick={onNewChat}
+        className="flex items-center gap-2 px-3 py-2 mb-2 bg-gradient-to-r from-[#1E3DFF] via-[#7A1EFF] to-[#FF1E99] hover:from-[#7A1EFF] hover:to-[#1E3DFF] text-white rounded-md transition-all duration-300"
+      >
+        <MessageSquare className="h-4 w-4" />
+        {!isCollapsed && <span className="text-sm">New Chat</span>}
+      </Button>
+
+      {/* Chat List */}
+      {chatHistory.map((chat) => {
+        const isActive = chat.id === currentChatId;
         return (
-          <Link
+          <div
             key={chat.id}
-            href={`/chat/${chat.id}`}
-            className={`flex items-center gap-2 px-3 py-2 rounded-md transition-colors group bg-gradient-to-r ${
+            onClick={() => onSwitchChat(chat.id)}
+            className={`flex items-center gap-2 px-3 py-2 rounded-md transition-colors group cursor-pointer ${
               isActive
-                ? "from-[#1E3DFF] via-[#7A1EFF] to-[#FF1E99] text-white"
-                : "hover:from-[#1E3DFF] hover:via-[#7A1EFF] hover:to-[#FF1E99] hover:bg-gradient-to-r"
+                ? "bg-gradient-to-r from-[#1E3DFF] via-[#7A1EFF] to-[#FF1E99] text-white"
+                : "hover:bg-gray-800 text-gray-300 hover:text-white"
             }`}
           >
             <MessageSquare
-              className={`h-4 w-4 group-hover:text-foreground ${
+              className={`h-4 w-4 flex-shrink-0 ${
                 isActive ? "text-white" : "text-muted-foreground"
               }`}
             />
             {!isCollapsed && (
-              <span
-                className={`truncate text-sm ${
-                  isActive ? "text-white font-semibold" : ""
-                }`}
-              >
-                {chat.title}
-              </span>
+              <>
+                <span
+                  className={`truncate text-sm flex-1 ${
+                    isActive ? "text-white font-semibold" : ""
+                  }`}
+                  title={chat.title}
+                >
+                  {chat.title}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="ml-auto h-6 w-6 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-all duration-200"
+                  onClick={(e) => handleDeleteClick(e, chat.id)}
+                  title="Delete chat"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </>
             )}
-            {!isCollapsed && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="ml-auto h-5 w-5 text-muted-foreground hover:text-red-500"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            )}
-          </Link>
+          </div>
         );
       })}
     </div>
   );
 }
 
-export default function ChatSidebar() {
-  const [collapsed, setCollapsed] = useState(false);
+interface ChatSidebarProps {
+  chatHistory: ChatSession[];
+  currentChatId: string | null;
+  onSwitchChat: (chatId: string) => void;
+  onDeleteChat: (chatId: string) => void;
+  onNewChat: () => void;
+}
 
+export default function ChatSidebar({ 
+  chatHistory, 
+  currentChatId, 
+  onSwitchChat, 
+  onDeleteChat, 
+  onNewChat 
+}: ChatSidebarProps) {
+  const [collapsed, setCollapsed] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
 
   return (
@@ -97,19 +144,6 @@ export default function ChatSidebar() {
               <div className="flex items-center justify-between px-6 py-4 border-b border-border/40">
                 <div className="flex items-center gap-2">
                   <Link href="/" className="font-bold text-lg text-white">
-                    IntentSwap
-                  </Link>
-                  <SheetTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label="Close sidebar"
-                    >
-                      <GoSidebarCollapse className="w-5 h-5" />
-                    </Button>
-                  </SheetTrigger>
-                </div>
-              </div>
               <nav className="flex-1 flex flex-col gap-2 px-4 py-6">
                 <Link
                   href="/"
@@ -118,8 +152,27 @@ export default function ChatSidebar() {
                   <Home className="w-5 h-5" />
                   <span>Home</span>
                 </Link>
+                <div className="mt-4">
+                  <div className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-gray-400">
+                    Chats
+                  </div>
+                  <ChatList 
+                    isCollapsed={false}
+                    chatHistory={chatHistory}
+                    currentChatId={currentChatId}
+                    onSwitchChat={onSwitchChat}
+                    onDeleteChat={onDeleteChat}
+                    onNewChat={onNewChat}
+                  />
+                </div>
                 <Link
-                  href="/chat"
+                  href="/settings"
+                  className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-accent transition-colors mt-auto"
+                >
+                  <Settings className="w-5 h-5" />
+                  <span>Settings</span>
+                </Link>
+              </nav>ef="/chat"
                   className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-accent transition-colors"
                 >
                   <MessageSquare className="w-5 h-5" />
@@ -157,9 +210,16 @@ export default function ChatSidebar() {
             </div>
             <div className="flex items-center gap-2">
               <Button
-                variant="ghost"
-                size="icon"
-                aria-label="Collapse sidebar"
+              <div className="px-2 flex-1 overflow-y-auto">
+                <ChatList 
+                  isCollapsed={collapsed}
+                  chatHistory={chatHistory}
+                  currentChatId={currentChatId}
+                  onSwitchChat={onSwitchChat}
+                  onDeleteChat={onDeleteChat}
+                  onNewChat={onNewChat}
+                />
+              </div>-label="Collapse sidebar"
                 onClick={() => setCollapsed(true)}
               >
                 <GoSidebarCollapse className="w-5 h-5" />
