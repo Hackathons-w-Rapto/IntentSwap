@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
           senderAddress,
           recipient,
           intent.amount,
-          tokenAddress as string
+          tokenAddress as any
         );
 
         aiResponse = `You're sending ${intent.amount} ${intent.token} to ${recipient}.
@@ -125,7 +125,7 @@ Would you like me to prepare the transaction?`;
         const tokenAddress = intent.token === "STT" ? null : TOKEN_ADDRESSES[intent.token as SupportedToken] || null;
         const balance = await blockchain.getBalance(
           senderAddress,
-          tokenAddress as string
+          tokenAddress as any
         );
 
         aiResponse = `Your current ${intent.token || "STT"} balance is ${balance}.`;
