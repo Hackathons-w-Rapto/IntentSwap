@@ -8,13 +8,21 @@ import {
   ExternalLink,
   CheckCircle,
   AlertCircle,
+  Plus,
+  MessageSquare,
+  Settings,
+  LogOut,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import Link from "next/link";
 import { useAccount } from "wagmi";
 import { TOKEN_ADDRESSES, SOMNIA_CONFIG } from "@/lib/blockchain/config";
 import ConnectWalletButton from "@/components/ConnectWalletButton";
-import ChatSidebar from "@/components/ChatSidebar";
 import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { cn } from "@/lib/utils";
 import { FaMicrophone } from "react-icons/fa6";
 import { ethers } from "ethers";
 
@@ -39,63 +47,157 @@ interface TransactionConfirmation {
   recipient: string;
   gasEstimate: string;
 }
+
+interface ChatSession {
+  id: string;
+  title: string;
+  timestamp: Date;
+  messages: Message[];
+}
 export default function ChatPage() {
   const Defaulttoken = "STT";
   const { isConnected, address } = useAccount();
-  const [messages, setMessages] = useState<Message[]>([
-    {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
+  const [pendingConfirmation, setPendingConfirmation] =
+    useState<TransactionConfirmation | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [chatHistory, setChatHistory] = useState<ChatSession[]>([]);
+  const [currentChatId, setCurrentChatId] = useState<string | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Generate chat title from first user message
+  const generateChatTitle = (firstMessage: string): string => {
+    const words = firstMessage.trim().split(" ").slice(0, 4);
+    return words.join(" ") + (firstMessage.split(" ").length > 4 ? "..." : "");
+  };
+
+  // Save chat sessions to localStorage
+  const saveChatSessions = (sessions: ChatSession[]) => {
+    try {
+      localStorage.setItem(
+        "intentswap_chat_sessions",
+        JSON.stringify(sessions)
+      );
+    } catch (error) {
+      console.error("Failed to save chat sessions:", error);
+    }
+  };
+
+  // Load chat sessions from localStorage
+  const loadChatSessions = (): ChatSession[] => {
+    try {
+      const stored = localStorage.getItem("intentswap_chat_sessions");
+      if (stored) {
+        const sessions = JSON.parse(stored) as Array<{
+          id: string;
+          title: string;
+          timestamp: string;
+          messages: Array<{
+            id: string;
+            sender: "user" | "agent";
+            text: string;
+            timestamp: string;
+            type?: "normal" | "transaction" | "confirmation" | "error";
+            transactionData?: {
+              amount: string;
+              token: string;
+              recipient: string;
+              txReciept?: string;
+              status?: "pending" | "confirmed" | "failed";
+            };
+          }>;
+        }>;
+
+        // Convert timestamp strings back to Date objects
+        return sessions.map((session) => ({
+          ...session,
+          timestamp: new Date(session.timestamp),
+          messages: session.messages.map((msg) => ({
+            ...msg,
+            timestamp: new Date(msg.timestamp),
+          })),
+        }));
+      }
+    } catch (error) {
+      console.error("Failed to load chat sessions:", error);
+    }
+    return [];
+  };
+
+  // Create new chat session
+  const createNewChat = () => {
+    const newChatId = Date.now().toString();
+    const welcomeMessage: Message = {
       id: "welcome",
       sender: "agent",
       text: ' Welcome to IntentSwap! I can help you transfer tokens on Somnia testnet using simple commands. Try saying something like:\n\n• "Send 50 STT to Alice"\n• "Transfer 100 tokens to 0x123..."\n• "Pay Bob 25 STT"',
       timestamp: new Date(),
       type: "normal",
-    },
-  ]);
-  const [input, setInput] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
-  const [pendingConfirmation, setPendingConfirmation] =
-    useState<TransactionConfirmation | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+    };
+
+    setMessages([welcomeMessage]);
+    setCurrentChatId(newChatId);
+    setPendingConfirmation(null);
+  };
+
+  // Switch to existing chat
+  const switchToChat = (chatId: string) => {
+    const session = chatHistory.find((chat) => chat.id === chatId);
+    if (session) {
+      setMessages(session.messages);
+      setCurrentChatId(chatId);
+      setPendingConfirmation(null);
+    }
+  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Mock AI parsing function
-  // const parseIntent = (text: string): TransactionConfirmation | null => {
-  //   // const lowerText = text.toLowerCase();
+  // Load chat history on mount
+  useEffect(() => {
+    const loadedSessions = loadChatSessions();
+    setChatHistory(loadedSessions);
 
-  //   // Simple regex patterns for demo
-  //   const patterns = [
-  //     /send (\d+(?:\.\d+)?)\s*(stt|tokens?)?\s*to\s*(.+)/i,
-  //     /transfer (\d+(?:\.\d+)?)\s*(stt|tokens?)?\s*to\s*(.+)/i,
-  //     /pay (.+?)\s*(\d+(?:\.\d+)?)\s*(stt|tokens?)?/i,
-  //   ];
+    // Create new chat if no current chat
+    if (!currentChatId) {
+      createNewChat();
+    }
+  }, [currentChatId]);
 
-  //   for (const pattern of patterns) {
-  //     const match = text.match(pattern);
-  //     if (match) {
-  //       if (pattern.source.includes("pay")) {
-  //         // Handle "pay X amount" format
-  //         return {
-  //           amount: match[2],
-  //           token: match[3]?.toUpperCase() || "STT",
-  //           recipient: match[1],
-  //           gasEstimate: "0.001 ETH",
-  //         };
-  //       } else {
-  //         // Handle "send/transfer amount to recipient" format
-  //         return {
-  //           amount: match[1],
-  //           token: match[2]?.toUpperCase() || "STT",
-  //           recipient: match[3],
-  //           gasEstimate: "0.001 ETH",
-  //         };
-  //       }
-  //     }
-  //   }
-  //   return null;
-  // };
+  // Save current chat whenever messages change
+  useEffect(() => {
+    if (messages.length > 1 && currentChatId) {
+      // Only save if there are messages beyond welcome
+      const userMessages = messages.filter((msg) => msg.sender === "user");
+      if (userMessages.length === 0) return; // Don't save if no user messages
+
+      const title = generateChatTitle(userMessages[0].text);
+
+      const updatedHistory = [...chatHistory];
+      const existingIndex = updatedHistory.findIndex(
+        (chat) => chat.id === currentChatId
+      );
+
+      const chatSession: ChatSession = {
+        id: currentChatId,
+        title,
+        timestamp: new Date(),
+        messages: messages,
+      };
+
+      if (existingIndex >= 0) {
+        updatedHistory[existingIndex] = chatSession;
+      } else {
+        updatedHistory.unshift(chatSession); // Add to beginning
+      }
+
+      setChatHistory(updatedHistory);
+      saveChatSessions(updatedHistory);
+    }
+  }, [messages, currentChatId, chatHistory]);
 
   async function fetchIntentResponse(message: string, context: Message[]) {
     const res = await fetch("/api/chat", {
@@ -150,13 +252,29 @@ export default function ChatPage() {
     if (Number(network.chainId) !== SOMNIA_CONFIG.chainId) {
       const chainIdHex = "0x" + SOMNIA_CONFIG.chainId.toString(16);
       try {
-        await (window.ethereum as any).request({
+        const ethProvider = window.ethereum as unknown as {
+          request: (args: {
+            method: string;
+            params?: unknown[];
+          }) => Promise<unknown>;
+        };
+        await ethProvider.request({
           method: "wallet_switchEthereumChain",
           params: [{ chainId: chainIdHex }],
         });
-      } catch (switchErr: any) {
-        if (switchErr?.code === 4902) {
-          await (window.ethereum as any).request({
+      } catch (switchErr: unknown) {
+        if (
+          typeof switchErr === "object" &&
+          switchErr !== null &&
+          (switchErr as { code?: number }).code === 4902
+        ) {
+          const ethProvider = window.ethereum as unknown as {
+            request: (args: {
+              method: string;
+              params?: unknown[];
+            }) => Promise<unknown>;
+          };
+          await ethProvider.request({
             method: "wallet_addEthereumChain",
             params: [
               {
@@ -233,6 +351,11 @@ export default function ChatPage() {
   const sendMessage = async () => {
     if (!input.trim()) return;
 
+    // Ensure we have a current chat
+    if (!currentChatId) {
+      createNewChat();
+    }
+
     addMessage({ sender: "user", text: input });
     const userInput = input;
     setInput("");
@@ -246,16 +369,18 @@ export default function ChatPage() {
         const data: TransactionConfirmation = {
           amount: response.intent.amount,
           token: response.intent.token || Defaulttoken,
-          recipient: response.actionResult.recipient || response.intent.recipient,
+          recipient:
+            response.actionResult.recipient || response.intent.recipient,
           gasEstimate: response.actionResult.gasEstimate || "~",
         };
 
         const userAddress = address || "";
         const token = data.token || Defaulttoken;
         const balanceRes = await fetchBalance(userAddress, token);
-        const balanceText = balanceRes?.success && balanceRes?.balance
-          ? `Your balance: ${balanceRes.balance} ${token}`
-          : "Unable to fetch balance.";
+        const balanceText =
+          balanceRes?.success && balanceRes?.balance
+            ? `Your balance: ${balanceRes.balance} ${token}`
+            : "Unable to fetch balance.";
 
         addMessage({
           sender: "agent",
@@ -283,14 +408,13 @@ ${balanceText}\n\nPlease confirm the transaction details below:`,
         text: "Server error. Please try again.",
         type: "error",
       });
-    
+
       if (error instanceof Error) {
         throw new Error(`Error fetching intent response: ${error.message}`);
       } else {
         throw new Error("Error fetching intent response");
       }
     }
-    
   };
 
   const addMessage = (message: Omit<Message, "id" | "timestamp">) => {
@@ -305,7 +429,7 @@ ${balanceText}\n\nPlease confirm the transaction details below:`,
   const simulateTyping = () => {
     setIsTyping(true);
 
-    // setTimeout(() => 
+    // setTimeout(() =>
     //   setIsTyping(false),
     // 800);
   };
@@ -369,8 +493,117 @@ ${balanceText}\n\nPlease confirm the transaction details below:`,
 
   return (
     <div className="min-h-screen bg-black flex font-sans">
-      {/* Sidebar */}
-      <ChatSidebar />
+      {/* Collapsible Sidebar */}
+      <div
+        className={cn(
+          "flex flex-col bg-gray-900 border-r border-gray-700 transition-all duration-300 ease-in-out",
+          sidebarCollapsed ? "w-16" : "w-64"
+        )}
+      >
+        {/* Sidebar Header */}
+        <div className="flex items-center justify-between p-4 border-b border-gray-700">
+          {!sidebarCollapsed && (
+            <h2 className="text-lg font-semibold text-white">IntentSwap</h2>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            className="text-gray-400 hover:text-white hover:bg-gray-800"
+          >
+            {sidebarCollapsed ? (
+              <ChevronRight className="h-4 w-4" />
+            ) : (
+              <ChevronLeft className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
+
+        {/* New Chat Button */}
+        <div className="p-4">
+          <Button
+            variant="outline"
+            onClick={createNewChat}
+            className={cn(
+              "w-full bg-transparent border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white",
+              sidebarCollapsed && "px-2"
+            )}
+          >
+            <Plus className="h-4 w-4" />
+            {!sidebarCollapsed && <span className="ml-2">New Chat</span>}
+          </Button>
+        </div>
+
+        {/* Chat History */}
+        <ScrollArea className="flex-1 px-2">
+          {!sidebarCollapsed && (
+            <div className="space-y-2">
+              {chatHistory.map((chat) => (
+                <Button
+                  key={chat.id}
+                  variant="ghost"
+                  onClick={() => switchToChat(chat.id)}
+                  className={cn(
+                    "w-full justify-start text-left text-gray-300 hover:bg-gray-800 hover:text-white h-auto p-3",
+                    currentChatId === chat.id && "bg-gray-800 text-white"
+                  )}
+                >
+                  <MessageSquare className="h-4 w-4 mr-2 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm truncate">{chat.title}</p>
+                    <p className="text-xs text-gray-500 truncate">
+                      {chat.timestamp.toLocaleDateString()}
+                    </p>
+                  </div>
+                </Button>
+              ))}
+            </div>
+          )}
+          {sidebarCollapsed && (
+            <div className="space-y-2 py-2">
+              {chatHistory.map((chat) => (
+                <Button
+                  key={chat.id}
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => switchToChat(chat.id)}
+                  className={cn(
+                    "w-full p-2 text-gray-300 hover:bg-gray-800 hover:text-white",
+                    currentChatId === chat.id && "bg-gray-800 text-white"
+                  )}
+                >
+                  <MessageSquare className="h-4 w-4" />
+                </Button>
+              ))}
+            </div>
+          )}
+        </ScrollArea>
+
+        {/* Sidebar Footer */}
+        <div className="border-t border-gray-700 p-4 space-y-2">
+          <Button
+            variant="ghost"
+            className={cn(
+              "w-full justify-start text-gray-300 hover:bg-gray-800 hover:text-white",
+              sidebarCollapsed && "px-2"
+            )}
+          >
+            <Settings className="h-4 w-4" />
+            {!sidebarCollapsed && <span className="ml-2">Settings</span>}
+          </Button>
+          <Button
+            variant="ghost"
+            className={cn(
+              "w-full justify-start text-gray-300 hover:bg-gray-800 hover:text-white",
+              sidebarCollapsed && "px-2"
+            )}
+          >
+            <LogOut className="h-4 w-4" />
+            {!sidebarCollapsed && <span className="ml-2">Sign Out</span>}
+          </Button>
+        </div>
+      </div>
+
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col">
         {/* Header */}
@@ -432,33 +665,10 @@ ${balanceText}\n\nPlease confirm the transaction details below:`,
                         ? "bg-yellow-900/50 border border-yellow-500 text-white"
                         : msg.type === "transaction"
                         ? "bg-green-900/50 border border-green-500 text-white"
-                        : "bg-gray-800 text-white border border-gray-600"
+                        : "bg-gray-900 text-white border border-gray-600"
                     }`}
                   >
-                    {/* Message icon */}
-                    {msg.sender === "agent" && (
-                      <div
-                        className={`absolute -left-0 mx-2 top-3 w-8 h-8 rounded-full flex items-center justify-center text-sm ${
-                          msg.type === "error"
-                            ? "bg-red-500"
-                            : msg.type === "confirmation"
-                            ? "bg-yellow-500"
-                            : msg.type === "transaction"
-                            ? "bg-green-500"
-                            : "bg-purple-500"
-                        }`}
-                      >
-                        {msg.type === "error"
-                          ? "⚠️"
-                          : msg.type === "confirmation"
-                          ? "❓"
-                          : msg.type === "transaction"
-                          ? "✅"
-                          : "🤖"}
-                      </div>
-                    )}
-
-                    <p className="whitespace-pre-line leading-relaxed ml-6">
+                    <p className="whitespace-pre-line  leading-relaxed ml-1">
                       {msg.text}
                     </p>
 
