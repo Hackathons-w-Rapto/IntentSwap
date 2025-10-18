@@ -32,6 +32,32 @@ declare global {
   }
 }
 
+type SpeechRecognitionAlternative = {
+  transcript: string;
+  confidence: number;
+};
+
+type SpeechRecognitionResult = {
+  isFinal: boolean;
+  length: number;
+  [index: number]: SpeechRecognitionAlternative;
+};
+
+type SpeechRecognitionResultList = {
+  length: number;
+  [index: number]: SpeechRecognitionResult;
+};
+
+type SpeechRecognitionEvent = Event & {
+  readonly resultIndex: number;
+  readonly results: SpeechRecognitionResultList;
+};
+
+type SpeechRecognitionErrorEvent = Event & {
+  readonly error: string;
+  readonly message: string;
+};
+
 interface Message {
   id: string;
   sender: "user" | "agent";
@@ -554,10 +580,12 @@ ${balanceText}\n\nPlease confirm the transaction details below:`,
   useEffect(() => {
     if (typeof window !== "undefined") {
       try {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const SpeechRecognition =
+          window.SpeechRecognition || window.webkitSpeechRecognition;
 
         if (SpeechRecognition) {
-          const recognitionInstance = (new SpeechRecognition() as unknown) as ISpeechRecognition;
+          const recognitionInstance =
+            new SpeechRecognition() as unknown as ISpeechRecognition;
           recognitionInstance.continuous = false;
           recognitionInstance.interimResults = true;
           recognitionInstance.lang = "en-US";
