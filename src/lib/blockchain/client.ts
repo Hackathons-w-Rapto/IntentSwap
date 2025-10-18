@@ -1,5 +1,5 @@
 import { ethers } from "ethers";
-import { SOMNIA_CONFIG, ERC20_ABI, TOKEN_ADDRESSES } from "./config";
+import { SOMNIA_CONFIG, ERC20_ABI } from "./config";
 
 export class BlockchainClient {
   private provider: ethers.JsonRpcProvider;
@@ -35,7 +35,12 @@ export class BlockchainClient {
     }
   }
 
-  async estimateGas(from: string, to: string, amount: string, tokenAddress?: string): Promise<string> {
+  async estimateGas(
+    from: string,
+    to: string,
+    amount: string,
+    tokenAddress?: string
+  ): Promise<string> {
     try {
       if (!tokenAddress) {
         // Native token transfer (STT)
@@ -47,7 +52,8 @@ export class BlockchainClient {
         });
 
         const feeData = await this.provider.getFeeData();
-        const pricePerGas = feeData.gasPrice ?? feeData.maxFeePerGas ?? BigInt(0);
+        const pricePerGas =
+          feeData.gasPrice ?? feeData.maxFeePerGas ?? BigInt(0);
 
         const totalCostWei = gasEstimate * pricePerGas;
         return ethers.formatEther(totalCostWei);
@@ -65,7 +71,8 @@ export class BlockchainClient {
         );
 
         const feeData = await this.provider.getFeeData();
-        const pricePerGas = feeData.gasPrice ?? feeData.maxFeePerGas ?? BigInt(0);
+        const pricePerGas =
+          feeData.gasPrice ?? feeData.maxFeePerGas ?? BigInt(0);
 
         const totalCostWei = gasEstimate * pricePerGas;
         return ethers.formatEther(totalCostWei);
@@ -82,7 +89,7 @@ export class BlockchainClient {
   }> {
     try {
       const receipt = await this.provider.getTransactionReceipt(txHash);
-      
+
       if (!receipt) {
         return { status: "pending", confirmations: 0 };
       }

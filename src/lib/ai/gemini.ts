@@ -6,11 +6,13 @@ const hasApiKey = !!apiKey;
 const genAI = new GoogleGenerativeAI(apiKey || "dummy");
 
 export class GeminiParser {
-  private model: any | null = null;
+  private model: ReturnType<typeof genAI.getGenerativeModel> | null = null;
 
   constructor() {
     if (hasApiKey) {
-      this.model = genAI.getGenerativeModel({ model: "gemini-robotics-er-1.5-preview" });
+      this.model = genAI.getGenerativeModel({
+        model: "gemini-robotics-er-1.5-preview",
+      });
     }
   }
 
@@ -33,16 +35,24 @@ export class GeminiParser {
         return { action: "pay", amount, token, recipient, confidence: 0.9 };
       }
       if (/send\|transfer/.test(pattern.source)) {
-        const action = (m[1] || "transfer").toLowerCase() as ParsedIntent["action"];
+        const action = (
+          m[1] || "transfer"
+        ).toLowerCase() as ParsedIntent["action"];
         const amount = m[2];
         const token = (m[3] || "STT").toUpperCase();
         const recipient = m[4];
-        return { action: action as any, amount, token, recipient, confidence: 0.9 };
+        return { action, amount, token, recipient, confidence: 0.9 };
       }
       if (/balance/.test(pattern.source)) {
         const token = ((m[1] as string) || "STT").toUpperCase();
         // Use balance action; amount/recipient not needed
-        return { action: "balance", amount: "0", token, recipient: "", confidence: 0.9 } as any;
+        return {
+          action: "balance",
+          amount: "0",
+          token,
+          recipient: "",
+          confidence: 0.9,
+        };
       }
     }
     return null;
@@ -92,7 +102,10 @@ export class GeminiParser {
 
       const result = await this.model.generateContent(prompt);
       const text = (await result.response).text();
-      const cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+      const cleaned = text
+        .replace(/```json\n?/g, "")
+        .replace(/```\n?/g, "")
+        .trim();
       const parsed = JSON.parse(cleaned);
       if (
         parsed.confidence < 0.7 ||
@@ -109,7 +122,11 @@ export class GeminiParser {
     }
   }
 
-  async generateResponse(context: string, userMessage: string, senderAddress: string): Promise<string> {
+  async generateResponse(
+    context: string,
+    userMessage: string,
+    senderAddress: string
+  ): Promise<string> {
     if (!hasApiKey || !this.model) {
       // Simple fallback text
       return `You said: "${userMessage}". I can help send tokens or check balances.`;

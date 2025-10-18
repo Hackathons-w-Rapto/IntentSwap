@@ -25,6 +25,13 @@ import { cn } from "@/lib/utils";
 import { FaMicrophone } from "react-icons/fa6";
 import { ethers } from "ethers";
 
+declare global {
+  interface Window {
+    SpeechRecognition: typeof Function;
+    webkitSpeechRecognition: typeof Function;
+  }
+}
+
 interface Message {
   id: string;
   sender: "user" | "agent";
@@ -53,6 +60,19 @@ interface ChatSession {
   timestamp: Date;
   messages: Message[];
 }
+
+interface ISpeechRecognition {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onstart: () => void;
+  onresult: (event: SpeechRecognitionEvent) => void;
+  onend: () => void;
+  onerror: (event: SpeechRecognitionErrorEvent) => void;
+  start: () => void;
+  stop: () => void;
+}
+
 export default function ChatPage() {
   const Defaulttoken = "STT";
   const { authenticated, user } = usePrivy();
@@ -531,60 +551,61 @@ ${balanceText}\n\nPlease confirm the transaction details below:`,
     return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
-  // Initialize speech recognition
   useEffect(() => {
     if (typeof window !== "undefined") {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const SpeechRecognition =
-        (window as any).SpeechRecognition ||
-        (window as any).webkitSpeechRecognition;
+      try {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-      if (SpeechRecognition) {
-        const recognitionInstance = new SpeechRecognition();
-        recognitionInstance.continuous = false;
-        recognitionInstance.interimResults = true;
-        recognitionInstance.lang = "en-US";
+        if (SpeechRecognition) {
+          const recognitionInstance = (new SpeechRecognition() as unknown) as ISpeechRecognition;
+          recognitionInstance.continuous = false;
+          recognitionInstance.interimResults = true;
+          recognitionInstance.lang = "en-US";
 
-        recognitionInstance.onstart = () => {
-          setIsListening(true);
-        };
+          recognitionInstance.onstart = () => {
+            setIsListening(true);
+          };
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        recognitionInstance.onresult = (event: any) => {
-          let finalTranscript = "";
-          let interimTranscript = "";
+          recognitionInstance.onresult = (event: SpeechRecognitionEvent) => {
+            let finalTranscript = "";
+            let interimTranscript = "";
 
-          for (let i = event.resultIndex; i < event.results.length; ++i) {
-            if (event.results[i].isFinal) {
-              finalTranscript += event.results[i][0].transcript;
-            } else {
-              interimTranscript += event.results[i][0].transcript;
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+              if (event.results[i].isFinal) {
+                finalTranscript += event.results[i][0].transcript;
+              } else {
+                interimTranscript += event.results[i][0].transcript;
+              }
             }
-          }
 
-          // Update input with final transcript
-          if (finalTranscript) {
-            setInput(finalTranscript.trim());
-          } else {
-            // Show interim results in input
-            setInput(interimTranscript.trim());
-          }
-        };
+            // Update input with final transcript
+            if (finalTranscript) {
+              setInput(finalTranscript.trim());
+            } else {
+              // Show interim results in input
+              setInput(interimTranscript.trim());
+            }
+          };
 
-        recognitionInstance.onend = () => {
-          setIsListening(false);
-        };
+          recognitionInstance.onend = () => {
+            setIsListening(false);
+          };
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        recognitionInstance.onerror = (event: any) => {
-          console.error("Speech recognition error:", event.error);
-          setIsListening(false);
-        };
+          recognitionInstance.onerror = (
+            event: SpeechRecognitionErrorEvent
+          ) => {
+            console.error("Speech recognition error:", event.error);
+            setIsListening(false);
+          };
 
-        setRecognition(recognitionInstance);
-        setSpeechSupported(true);
-      } else {
-        setSpeechSupported(false);
+          setRecognition(recognitionInstance);
+          setSpeechSupported(true);
+        } else {
+          setSpeechSupported(false);
+        }
+      } catch (error) {
+        console.error("Speech recognition initialization error:", error);
+        throw new Error("Speech recognition initialization error");
       }
     }
   }, []);
@@ -625,17 +646,16 @@ ${balanceText}\n\nPlease confirm the transaction details below:`,
       <div
         className={cn(
           "flex flex-col bg-gray-900 border-r border-gray-700 transition-all duration-300 ease-in-out",
-          // Mobile: Hidden by default, slide in from left when opened, higher z-index than header
-          "fixed left-0 top-0 h-screen z-[60]",
+
+          "fixed left-0 top-0 min-h-screen z-[60]",
           showMobileSidebar ? "translate-x-0 w-64" : "-translate-x-full w-64",
-          // Desktop: Normal sidebar behavior, lower z-index
+
           "md:relative md:translate-x-0 md:z-40",
           sidebarCollapsed ? "md:w-16" : "md:w-64"
         )}
       >
         {/* Sidebar Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-700">
-          {/* Show title on mobile always, on desktop only when not collapsed */}
           {(showMobileSidebar || !sidebarCollapsed) && (
             <h2 className="text-lg font-semibold text-white">IntentSwap</h2>
           )}
@@ -835,7 +855,7 @@ ${balanceText}\n\nPlease confirm the transaction details below:`,
               {authenticated ? (
                 <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-[#1E3DFF] via-[#7A1EFF] to-[#FF1E99] shadow-lg hover:shadow-xl hover:shadow-purple-500/25 transition-all duration-300 border border-white/10 backdrop-blur-sm">
                   <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse shadow-lg shadow-green-400/50"></span>
-                  <span className="text-xs md:text-sm text-white font-medium hidden sm:block">
+                  <span className="text-xs md:text-sm text-white font-medium block">
                     Connected
                   </span>
                 </div>
@@ -848,7 +868,7 @@ ${balanceText}\n\nPlease confirm the transaction details below:`,
 
         {/* Chat Container */}
         <div className="flex-1 flex flex-col max-w-5xl mx-auto w-full p-2 md:p-4">
-          <div className="flex-1 overflow-y-auto space-y-4 mb-6 max-h-[calc(100vh-200px)] px-2 md:px-0">
+          <div className="flex-1 overflow-y-auto space-y-4 mb-6 max-h-[calc(100vh-200px)] px-2 md:px-0 pb-32">
             {messages.map((msg) => (
               <div
                 key={msg.id}
@@ -875,7 +895,7 @@ ${balanceText}\n\nPlease confirm the transaction details below:`,
                         : "bg-gray-900 text-white border border-gray-600"
                     }`}
                   >
-                    <p className="whitespace-pre-line leading-relaxed ml-1">
+                    <p className="whitespace-pre-line truncate md:truncate-none leading-relaxed ml-1">
                       {msg.text}
                     </p>
 
@@ -890,9 +910,9 @@ ${balanceText}\n\nPlease confirm the transaction details below:`,
                               {msg.transactionData.token}
                             </span>
                           </div>
-                          <div>
+                          <div className="">
                             <span className="text-gray-400">To:</span>
-                            <span className="ml-2 font-mono text-xs break-all">
+                            <span className="ml-2 font-mono text-xs break-all whitespace-normal max-w-[10vw] block">
                               {msg.transactionData.recipient}
                             </span>
                           </div>
@@ -1019,88 +1039,85 @@ ${balanceText}\n\nPlease confirm the transaction details below:`,
               </div>
             </div>
           )}
-          {/* Input */}{" "}
-          <div className="relative flex flex-col space-y-6 items-center justify-center">
-            {/* Input Container */}
-            <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center w-full max-w-4xl mx-auto px-4">
-              {/* Input Field with Microphone */}
-              <div className="flex-1 relative">
-                {/* Listening indicator */}
-                {isListening && (
-                  <div className="absolute -top-2 left-4 bg-red-500 text-white text-xs px-2 py-1 rounded-full animate-pulse z-10">
-                    Listening...
-                  </div>
-                )}
-                <input
-                  type="text"
-                  className={`w-full px-4 py-3 pr-12 rounded-2xl border transition-all text-base ${
-                    isListening
-                      ? "border-red-400 bg-red-900/20 focus:ring-red-500"
-                      : "border-gray-600 bg-gray-900/50 focus:ring-purple-500"
-                  } text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent`}
-                  placeholder={
-                    isListening
-                      ? "Listening... Speak your command"
-                      : "Type your command... (e.g., 'Send 50 STT to Alice')"
-                  }
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-                  disabled={isTyping || !!pendingConfirmation}
-                />
-                <button
-                  className={`absolute right-4 top-1/2 -translate-y-1/2 transition-all duration-300 ${
-                    isListening
-                      ? "text-red-400 hover:text-red-300 animate-pulse"
-                      : speechSupported
-                      ? "text-gray-400 hover:text-white"
-                      : "text-gray-600 cursor-not-allowed"
-                  }`}
-                  type="button"
-                  title={
-                    !speechSupported
-                      ? "Voice input not supported"
-                      : isListening
-                      ? "Stop listening"
-                      : "Start voice input"
-                  }
-                  onClick={toggleListening}
-                  disabled={!speechSupported}
-                >
-                  <FaMicrophone
-                    className={`w-4 h-4 ${isListening ? "drop-shadow-lg" : ""}`}
-                  />
-                </button>
-              </div>
-
-              {/* Send Button */}
+        </div>
+        {/* Fixed Input Box at Bottom */}
+        <div className="sticky bottom-0 left-0 w-full bg-black/95 z-50 py-4 border-t border-gray-800">
+          <div className="flex flex-row gap-3 items-stretch sm:items-center w-full max-w-4xl mx-auto px-4">
+            {/* Input Field with Microphone */}
+            <div className="flex-1 relative">
+              {/* Listening indicator */}
+              {isListening && (
+                <div className="absolute -top-2 left-4 bg-red-500 text-white text-xs px-2 py-1 rounded-full animate-pulse z-10">
+                  Listening...
+                </div>
+              )}
+              <input
+                type="text"
+                className={`w-full px-4 py-3 pr-12 rounded-2xl border transition-all text-base ${
+                  isListening
+                    ? "border-red-400 bg-red-900/20 focus:ring-red-500"
+                    : "border-gray-600 bg-gray-900/50 focus:ring-purple-500"
+                } text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent`}
+                placeholder={
+                  isListening
+                    ? "Listening... Speak your command"
+                    : "Type your command... (e.g., 'Send 50 STT to Alice')"
+                }
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+                disabled={isTyping || !!pendingConfirmation}
+              />
               <button
-                onClick={sendMessage}
-                disabled={!input.trim() || isTyping || !!pendingConfirmation}
-                className="px-6 py-3 rounded-2xl font-semibold bg-gradient-to-r from-[#1E3DFF] via-[#7A1EFF] to-[#FF1E99] text-white shadow-lg hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 transition-all flex items-center justify-center gap-2 text-base sm:w-auto w-full"
+                className={`absolute right-4 top-1/2 -translate-y-1/2 transition-all duration-300 ${
+                  isListening
+                    ? "text-red-400 hover:text-red-300 animate-pulse"
+                    : speechSupported
+                    ? "text-gray-400 hover:text-white"
+                    : "text-gray-600 cursor-not-allowed"
+                }`}
+                type="button"
+                title={
+                  !speechSupported
+                    ? "Voice input not supported"
+                    : isListening
+                    ? "Stop listening"
+                    : "Start voice input"
+                }
+                onClick={toggleListening}
+                disabled={!speechSupported}
               >
-                <Send className="w-4 h-4" />
-                <span>Send</span>
+                <FaMicrophone
+                  className={`w-4 h-4 ${isListening ? "drop-shadow-lg" : ""}`}
+                />
               </button>
             </div>
-
-            {/* Quick Suggestions */}
-            <div className="flex md:flex-row-reverse gap-2 justify-center px-4 max-w-4xl mx-auto">
-              {[
-                "Send 50 STT to Alice",
-                "Transfer 100 tokens to 0x123...",
-                "Pay Bob 25 STT",
-              ].map((suggestion, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setInput(suggestion)}
-                  className="text-sm px-3 py-1.5 bg-gray-800/80 text-gray-300 rounded-full hover:bg-gray-700 hover:text-white transition-all border border-gray-700/50 hover:border-gray-600"
-                  disabled={isTyping || !!pendingConfirmation}
-                >
-                  {suggestion}
-                </button>
-              ))}
-            </div>
+            {/* Send Button */}
+            <button
+              onClick={sendMessage}
+              disabled={!input.trim() || isTyping || !!pendingConfirmation}
+              className="px-6 py-3 rounded-2xl font-semibold bg-gradient-to-r from-[#1E3DFF] via-[#7A1EFF] to-[#FF1E99] text-white shadow-lg hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 transition-all flex items-center justify-center gap-2 text-base sm:w-auto"
+            >
+              <Send className="w-4 h-4" />
+              <span>Send</span>
+            </button>
+          </div>
+          {/* Quick Suggestions */}
+          <div className="flex md:flex-row-reverse gap-2 justify-center px-4 max-w-4xl mx-auto mt-2">
+            {[
+              "Send 50 STT to 0x123.",
+              "Transfer 100 tokens to 0x123.",
+              "Pay 0x123. 25 STT",
+            ].map((suggestion, idx) => (
+              <button
+                key={idx}
+                onClick={() => setInput(suggestion)}
+                className="text-sm px-1.5 py-1.5 bg-gray-800/80 text-gray-300 rounded-full hover:bg-gray-700 hover:text-white transition-all border border-gray-700/50 hover:border-gray-600"
+                disabled={isTyping || !!pendingConfirmation}
+              >
+                {suggestion}
+              </button>
+            ))}
           </div>
         </div>
       </div>
