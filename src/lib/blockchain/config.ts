@@ -14,8 +14,8 @@ export const SOMNIA_CONFIG = {
 };
 
 export const TOKEN_ADDRESSES = {
+  ETH: "0x0000000000000000000000000000000000000000" // Placeholder for ETH
   // STT is the native token on Somnia testnet, not an ERC20 token
-  // If you need ERC20 tokens, add them here with their contract addresses
 };
 export type SupportedToken = keyof typeof TOKEN_ADDRESSES;
 // ERC20 ABI for token transfers

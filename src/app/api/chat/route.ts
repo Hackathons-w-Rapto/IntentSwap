@@ -95,7 +95,14 @@ export async function POST(req: NextRequest) {
 
         const recipient = resolved;
         // For STT (native token), we don't need a token address
-        const tokenAddress = intent.token === "STT" ? null : TOKEN_ADDRESSES[intent.token as SupportedToken] || null;
+        // Validate token is either ETH or STT
+        if (intent.token !== "ETH" && intent.token !== "STT") {
+          aiResponse = `Sorry, we only support ETH and STT tokens at this time.`;
+          actionResult = { error: "Unsupported token" };
+          break;
+        }
+
+        const tokenAddress = intent.token === "STT" ? null : TOKEN_ADDRESSES.ETH;
 
         // Estimate gas
         const gasEstimate = await blockchain.estimateGas(
@@ -121,8 +128,14 @@ Would you like me to prepare the transaction?`;
       case "balance":
       case "check":
       case "balance_check": {
-        // For STT (native token), we don't need a token address
-        const tokenAddress = intent.token === "STT" ? null : TOKEN_ADDRESSES[intent.token as SupportedToken] || null;
+        // Validate token is either ETH or STT
+        if (intent.token !== "ETH" && intent.token !== "STT") {
+          aiResponse = `Sorry, we only support ETH and STT tokens at this time.`;
+          actionResult = { error: "Unsupported token" };
+          break;
+        }
+
+        const tokenAddress = intent.token === "STT" ? null : TOKEN_ADDRESSES.ETH;
         const balance = await blockchain.getBalance(
           senderAddress,
           tokenAddress as any

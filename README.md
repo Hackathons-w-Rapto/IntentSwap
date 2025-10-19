@@ -8,9 +8,9 @@ Transaction Confirmation → Safety checks before execution
 
 Example Commands
 "Send 50 STT to 0x742d35Cc6238A4C8dF8A4bE89c8b9a2C4d5F6E7F"
-"Transfer 100 tokens to alice.eth" 
+"Transfer 1 ETH to alice.eth" 
 "Pay 25 STT to Bob's wallet"
-"Send my friend 10 tokens"
+"Check my ETH balance"
 🛠 Tech Stack Suggestion
 
 Frontend: React/Next.js with chat interface

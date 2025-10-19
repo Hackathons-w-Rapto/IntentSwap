@@ -18,17 +18,13 @@ export class BlockchainClient {
 
   async getBalance(address: string, tokenAddress?: string): Promise<string> {
     try {
-      if (!tokenAddress) {
+      if (!tokenAddress || tokenAddress === TOKEN_ADDRESSES.ETH) {
         // Get native balance (STT is the native token on Somnia testnet)
         const balance = await this.provider.getBalance(address);
         return ethers.formatEther(balance);
-      } else {
-        // Get token balance
-        const contract = await this.getTokenContract(tokenAddress);
-        const balance = await contract.balanceOf(address);
-        const decimals = await contract.decimals();
-        return ethers.formatUnits(balance, decimals);
       }
+      // ETH and STT are the only supported tokens
+      throw new Error("Unsupported token");
     } catch (error) {
       console.error("Error getting balance:", error);
       throw error;
@@ -37,8 +33,8 @@ export class BlockchainClient {
 
   async estimateGas(from: string, to: string, amount: string, tokenAddress?: string): Promise<string> {
     try {
-      if (!tokenAddress) {
-        // Native token transfer (STT)
+      if (!tokenAddress || tokenAddress === TOKEN_ADDRESSES.ETH) {
+        // Native token transfer (STT or ETH)
         const amountWei = ethers.parseEther(amount);
         const gasEstimate = await this.provider.estimateGas({
           from,
@@ -52,23 +48,8 @@ export class BlockchainClient {
         const totalCostWei = gasEstimate * pricePerGas;
         return ethers.formatEther(totalCostWei);
       } else {
-        // ERC20 token transfer
-        const contract = await this.getTokenContract(tokenAddress);
-        const decimals = await contract.decimals();
-        const amountWei = ethers.parseUnits(amount, decimals);
-
-        // ethers v6: use contract.transfer.estimateGas() and include from override
-        const gasEstimate: bigint = await contract.transfer.estimateGas(
-          to,
-          amountWei,
-          { from }
-        );
-
-        const feeData = await this.provider.getFeeData();
-        const pricePerGas = feeData.gasPrice ?? feeData.maxFeePerGas ?? BigInt(0);
-
-        const totalCostWei = gasEstimate * pricePerGas;
-        return ethers.formatEther(totalCostWei);
+        // Only STT and ETH are supported
+        throw new Error("Unsupported token");
       }
     } catch (error) {
       console.error("Error estimating gas:", error);

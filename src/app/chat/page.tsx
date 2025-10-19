@@ -1088,8 +1088,8 @@ ${balanceText}\n\nPlease confirm the transaction details below:`,
             <div className="flex md:flex-row-reverse gap-2 justify-center px-4 max-w-4xl mx-auto">
               {[
                 "Send 50 STT to Alice",
-                "Transfer 100 tokens to 0x123...",
-                "Pay Bob 25 STT",
+                "Transfer 1 ETH to 0x123...",
+                "Check my STT balance",
               ].map((suggestion, idx) => (
                 <button
                   key={idx}

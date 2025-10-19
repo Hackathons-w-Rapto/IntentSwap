@@ -14,8 +14,14 @@ export async function POST(req: NextRequest) {
     }
 
     const blockchain = new BlockchainClient();
-    const tokenAddress = token ? TOKEN_ADDRESSES[token as keyof typeof TOKEN_ADDRESSES] : undefined;
+    if (token && token !== "ETH" && token !== "STT") {
+      return NextResponse.json(
+        { error: "Only ETH and STT tokens are supported" },
+        { status: 400 }
+      );
+    }
 
+    const tokenAddress = token === "ETH" ? TOKEN_ADDRESSES.ETH : undefined;
     const balance = await blockchain.getBalance(address, tokenAddress);
 
     return NextResponse.json({

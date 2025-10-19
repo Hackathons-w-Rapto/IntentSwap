@@ -114,11 +114,11 @@ export default function Home() {
             <div className="bg-gray-900/50 backdrop-blur border border-gray-700 cursor-pointer rounded-lg p-6 hover:border-purple-500 transition-colors duration-300">
               <div className="text-[#FF1E99]  text-sm mb-2">→ Input:</div>
               <div className="text-white mb-4">
-                &quot;Transfer 100 tokens to 0x123...&quot;
+                &quot;Transfer 1 ETH to 0x123...&quot;
               </div>
               <div className="text-[#FF1E99]  text-sm mb-2">← Parsed:</div>
               <div className="text-gray-300 text-sm">
-                Amount: 100, Token: STT, Recipient: 0x123...
+                Amount: 1, Token: ETH, Recipient: 0x123...
               </div>
             </div>
           </div>
