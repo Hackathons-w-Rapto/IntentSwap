@@ -1,5 +1,5 @@
 import { ethers } from "ethers";
-import { SOMNIA_CONFIG, ERC20_ABI } from "./config";
+import { SOMNIA_CONFIG, ERC20_ABI, TOKEN_ADDRESSES } from "./config";
 
 export class BlockchainClient {
   private provider: ethers.JsonRpcProvider;

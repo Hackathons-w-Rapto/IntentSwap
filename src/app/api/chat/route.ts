@@ -115,7 +115,7 @@ export async function POST(req: NextRequest) {
         // Validate token is either ETH or STT
         if (intent.token !== "ETH" && intent.token !== "STT") {
           aiResponse = `Sorry, we only support ETH and STT tokens at this time.`;
-          actionResult = { error: "Unsupported token" };
+          actionResult = { error: "Unsupported token" } as any;
           break;
         }
 
@@ -126,7 +126,7 @@ export async function POST(req: NextRequest) {
           senderAddress,
           recipient,
           intent.amount,
-          tokenAddress
+          tokenAddress as any
         );
 
         aiResponse = `You're sending ${intent.amount} ${intent.token} to ${recipient}.
@@ -148,14 +148,14 @@ Would you like me to prepare the transaction?`;
         // Validate token is either ETH or STT
         if (intent.token !== "ETH" && intent.token !== "STT") {
           aiResponse = `Sorry, we only support ETH and STT tokens at this time.`;
-          actionResult = { error: "Unsupported token" };
+          actionResult = { error: "Unsupported token" } as any;
           break;
         }
 
         const tokenAddress = intent.token === "STT" ? null : TOKEN_ADDRESSES.ETH;
         const balance = await blockchain.getBalance(
           senderAddress,
-          tokenAddress
+          tokenAddress as any
         );
 
         aiResponse = `Your current ${

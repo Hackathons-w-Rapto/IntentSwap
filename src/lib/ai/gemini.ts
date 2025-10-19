@@ -9,10 +9,17 @@ export class GeminiParser {
   private model: ReturnType<typeof genAI.getGenerativeModel> | null = null;
 
   constructor() {
-    if (hasApiKey) {
+    if (!hasApiKey) {
+      console.warn('No Gemini API key found in environment variables');
+      return;
+    }
+    try {
       this.model = genAI.getGenerativeModel({
         model: "gemini-robotics-er-1.5-preview",
       });
+      console.info('Gemini AI model initialized successfully');
+    } catch (error) {
+      console.error('Failed to initialize Gemini AI model:', error);
     }
   }
 
@@ -130,8 +137,9 @@ export class GeminiParser {
     senderAddress: string
   ): Promise<string> {
     if (!hasApiKey || !this.model) {
+      console.warn('Gemini AI not initialized:', { hasApiKey, hasModel: !!this.model });
       // Simple fallback text
-      return `You said: "${userMessage}". I can help send tokens or check balances.`;
+      return `You said: "${userMessage}". I can help send tokens or check balances. (Note: AI features are currently limited)`;
     }
     try {
       const prompt = `You are IntentSwap AI agent, a friendly blockchain transaction assistant. 
