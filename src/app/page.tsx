@@ -9,6 +9,7 @@ import { FaBoltLightning } from "react-icons/fa6";
 import { GiCheckedShield } from "react-icons/gi";
 import { SlMagnifier } from "react-icons/sl";
 import AnimatedWordType from "@/components/AnimatedWordType";
+import Image from "next/image";
 
 export default function Home() {
   const { authenticated } = usePrivy();
@@ -28,9 +29,17 @@ export default function Home() {
             showConnectMsg ? "mt-12" : ""
           }`}
         >
-          <h1 className="text-white text-lg font-semibold tracking-wide">
-            IntentSwap
-          </h1>
+          <div className="flex items-center gap-2">
+            <Image
+              src="/logo.jpg"
+              alt="IntentSwap Logo"
+              width={40}
+              height={40}
+            />
+            <h1 className="text-white text-lg font-semibold tracking-wide">
+              IntentSwap
+            </h1>
+          </div>
           <div className="flex items-center">
             <ConnectWalletButton />
           </div>
