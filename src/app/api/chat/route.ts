@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GeminiParser } from "@/lib/ai/gemini";
 import { BlockchainClient } from "@/lib/blockchain/client";
-import { SupportedToken, TOKEN_ADDRESSES } from "@/lib/blockchain/config";
+import { TOKEN_ADDRESSES } from "@/lib/blockchain/config";
 
 // Define ActionResult type for all possible shapes
 type ActionResult =
   | { needsAddress: true; amount: string; token: string; recipientName: string }
   | { recipient: string; gasEstimate: string; amount: string; token: string }
   | { balance: string; token: string }
+  | { error: string }
   | null;
 
 export async function POST(req: NextRequest) {
@@ -115,18 +116,19 @@ export async function POST(req: NextRequest) {
         // Validate token is either ETH or STT
         if (intent.token !== "ETH" && intent.token !== "STT") {
           aiResponse = `Sorry, we only support ETH and STT tokens at this time.`;
-          actionResult = { error: "Unsupported token" } as any;
+          actionResult = { error: "Unsupported token" } as { error: string };
           break;
         }
 
-        const tokenAddress = intent.token === "STT" ? null : TOKEN_ADDRESSES.ETH;
+        const tokenAddress =
+          intent.token === "STT" ? null : TOKEN_ADDRESSES.ETH;
 
         // Estimate gas
         const gasEstimate = await blockchain.estimateGas(
           senderAddress,
           recipient,
           intent.amount,
-          tokenAddress as any
+          tokenAddress as string
         );
 
         aiResponse = `You're sending ${intent.amount} ${intent.token} to ${recipient}.
@@ -148,14 +150,15 @@ Would you like me to prepare the transaction?`;
         // Validate token is either ETH or STT
         if (intent.token !== "ETH" && intent.token !== "STT") {
           aiResponse = `Sorry, we only support ETH and STT tokens at this time.`;
-          actionResult = { error: "Unsupported token" } as any;
+          actionResult = { error: "Unsupported token" } as { error: string };
           break;
         }
 
-        const tokenAddress = intent.token === "STT" ? null : TOKEN_ADDRESSES.ETH;
+        const tokenAddress =
+          intent.token === "STT" ? null : TOKEN_ADDRESSES.ETH;
         const balance = await blockchain.getBalance(
           senderAddress,
-          tokenAddress as any
+          tokenAddress as string
         );
 
         aiResponse = `Your current ${
