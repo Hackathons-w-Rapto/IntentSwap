@@ -187,7 +187,7 @@ export default function Home() {
               GitHub
             </Link>
             <Link
-              href="https://docs.somnia.network"
+              href="https://www.loom.com/share/aabf4d44adc94fcfb8c1ebf3d33d5044?sid=2294e122-09e7-437d-8c05-d95cc3b590a9"
               target="_blank"
               rel="noopener noreferrer"
               className="text-gray-400 hover:text-white transition-colors duration-300"

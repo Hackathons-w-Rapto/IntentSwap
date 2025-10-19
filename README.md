@@ -1,48 +1,38 @@
-🤖 Text-to-Transfer AI Agent
-Core Features
+# IntentSwap
 
-Natural Language Processing → Parse text commands for token transfers
-Smart Contract Integration → Execute transfers on Somnia testnet
-Conversation Interface → Chat-like UI for easy interaction
-Transaction Confirmation → Safety checks before execution
+**IntentSwap** is an AI-powered crypto swap dApp for the Somnia testnet. It features a ChatGPT-style interface, natural language and voice input, wallet connection, and robust UX for seamless token transfers.
 
-Example Commands
-"Send 50 STT to 0x742d35Cc6238A4C8dF8A4bE89c8b9a2C4d5F6E7F"
-"Transfer 1 ETH to alice.eth" 
-"Pay 25 STT to Bob's wallet"
-"Check my ETH balance"
-🛠 Tech Stack Suggestion
+## Features
+- Chat-based UI for token swaps
+- Natural language and voice command support
+- Wallet connection and authentication
+- Transaction confirmation and feedback
+- Responsive design for desktop and mobile
+- Error handling for offline/unsupported browsers
+- Local chat history and sidebar navigation
 
-Frontend: React/Next.js with chat interface
-AI/NLP:
+## Demo Video
+Watch a full demo here: [Loom Demo Video](https://www.loom.com/share/aabf4d44adc94fcfb8c1ebf3d33d5044?sid=2294e122-09e7-437d-8c05-d95cc3b590a9)
 
-Local: Use regex patterns + keyword matching
-Or integrate OpenAI API for better understanding
+## How to Use
+1. Connect your wallet using the button in the top right.
+2. Type or speak a command (e.g., "Send 50 STT to Alice").
+3. Confirm the transaction details and submit.
+4. View transaction status and history in the sidebar.
 
+## Tech Stack
+- Next.js 15
+- React 19
+- Tailwind CSS
+- Privy (wallet auth)
+- Somnia testnet
+- Radix UI, Sonner, Framer Motion
 
-Blockchain: Web3.js/Ethers.js for Somnia testnet
-Smart Contract: ERC-20 token transfer logic
+## For Judges
+- The app is fully functional on desktop and mobile.
+- Voice input works in all modern browsers.
+- All edge cases (offline, unsupported browser) are handled gracefully.
+- Please refer to the [Demo Video](https://www.loom.com/share/aabf4d44adc94fcfb8c1ebf3d33d5044?sid=2294e122-09e7-437d-8c05-d95cc3b590a9) for a walkthrough.
 
-🏗 Architecture Flow
-
-User types command in chat
-AI parses: amount, recipient, token type
-Display confirmation with parsed details
-User approves → Execute transaction
-Show transaction hash and status
-
-🎯 Track Recommendation
-DeFi Agents - This simplifies DeFi interactions through conversational AI, making token transfers more accessible.
-🚀 MVP Features
-
-Basic text parsing for transfers
-Somnia testnet integration
-Simple web interface
-Transaction history
-
-our tech stack: Frontend: Next.js, React, TailwindCSS
-Backend: Next.js /api  
-AI: Gemini API for natural language processing
-Blockchain: Web3.js/Ethers.js + Somnia testnet
-Wallets: MetaMask or WalletConnect for Somnia
-Smart Contracts: Solidity contracts deployed on Somnia
+## Contact
+For questions, reach out via GitHub Issues or the hackathon Discord.
