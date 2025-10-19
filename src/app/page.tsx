@@ -48,7 +48,7 @@ export default function Home() {
         <main className="flex flex-col items-center justify-center flex-1 w-full px-4 relative z-10">
           {/* Hero Section with improved spacing and animations */}
           <div className="text-center max-w-5xl mt-5 mx-auto">
-            <h2 className="text-5xl sm:text-7xl font-extrabold text-center mb-6 leading-tight">
+            <h2 className="text-4xl md:text-7xl font-extrabold text-center mb-6 leading-tight">
               <span className="text-white bg-clip-text animate-fade-in">
                 SWAP CRYPTO
                 <br />
@@ -58,7 +58,7 @@ export default function Home() {
               <AnimatedWordType />
             </h2>
 
-            <p className="text-gray-300 text-lg sm:text-xl text-center mb-8 max-w-2xl mx-auto leading-relaxed">
+            <p className="text-gray-300 text-md md:text-3xl text-center mb-8 max-w-2xl mx-auto leading-relaxed">
               Grant SpendPermissions once. Send tokens on{" "}
               <span className="text-white font-semibold">Somnia</span> just by
               typing a simple prompt. No complex interfaces, no multiple clicks.
