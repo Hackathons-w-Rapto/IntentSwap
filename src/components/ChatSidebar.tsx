@@ -9,11 +9,18 @@ import { MessageSquare, Home, Settings, Menu, Trash2 } from "lucide-react";
 import { GoSidebarCollapse } from "react-icons/go";
 import ConnectWalletButton from "./ConnectWalletButton";
 
+interface Message {
+  id: string;
+  content: string;
+  sender: string;
+  timestamp: Date;
+}
+
 interface ChatSession {
   id: string;
   title: string;
   timestamp: Date;
-  messages: any[];
+  messages: Message[];
 }
 
 interface ChatListProps {
@@ -25,13 +32,13 @@ interface ChatListProps {
   onNewChat: () => void;
 }
 
-function ChatList({ 
-  isCollapsed, 
-  chatHistory, 
-  currentChatId, 
-  onSwitchChat, 
+function ChatList({
+  isCollapsed,
+  chatHistory,
+  currentChatId,
+  onSwitchChat,
   onDeleteChat,
-  onNewChat 
+  onNewChat,
 }: ChatListProps) {
   const handleDeleteClick = (e: React.MouseEvent, chatId: string) => {
     e.preventDefault();
@@ -104,12 +111,12 @@ interface ChatSidebarProps {
   onNewChat: () => void;
 }
 
-export default function ChatSidebar({ 
-  chatHistory, 
-  currentChatId, 
-  onSwitchChat, 
-  onDeleteChat, 
-  onNewChat 
+export default function ChatSidebar({
+  chatHistory,
+  currentChatId,
+  onSwitchChat,
+  onDeleteChat,
+  onNewChat,
 }: ChatSidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -144,6 +151,21 @@ export default function ChatSidebar({
               <div className="flex items-center justify-between px-6 py-4 border-b border-border/40">
                 <div className="flex items-center gap-2">
                   <Link href="/" className="font-bold text-lg text-white">
+                    IntentSwap
+                  </Link>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="opacity-100"
+                    aria-label="Collapse sidebar"
+                    onClick={() => setCollapsed(true)}
+                  >
+                    <GoSidebarCollapse className="w-5 h-5" />
+                  </Button>
+                </div>
+              </div>
               <nav className="flex-1 flex flex-col gap-2 px-4 py-6">
                 <Link
                   href="/"
@@ -156,7 +178,7 @@ export default function ChatSidebar({
                   <div className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-gray-400">
                     Chats
                   </div>
-                  <ChatList 
+                  <ChatList
                     isCollapsed={false}
                     chatHistory={chatHistory}
                     currentChatId={currentChatId}
@@ -168,19 +190,6 @@ export default function ChatSidebar({
                 <Link
                   href="/settings"
                   className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-accent transition-colors mt-auto"
-                >
-                  <Settings className="w-5 h-5" />
-                  <span>Settings</span>
-                </Link>
-              </nav>ef="/chat"
-                  className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-accent transition-colors"
-                >
-                  <MessageSquare className="w-5 h-5" />
-                  <span>Chat</span>
-                </Link>
-                <Link
-                  href="/settings"
-                  className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-accent transition-colors"
                 >
                   <Settings className="w-5 h-5" />
                   <span>Settings</span>
@@ -210,16 +219,10 @@ export default function ChatSidebar({
             </div>
             <div className="flex items-center gap-2">
               <Button
-              <div className="px-2 flex-1 overflow-y-auto">
-                <ChatList 
-                  isCollapsed={collapsed}
-                  chatHistory={chatHistory}
-                  currentChatId={currentChatId}
-                  onSwitchChat={onSwitchChat}
-                  onDeleteChat={onDeleteChat}
-                  onNewChat={onNewChat}
-                />
-              </div>-label="Collapse sidebar"
+                variant="ghost"
+                size="icon"
+                className="opacity-100"
+                aria-label="Collapse sidebar"
                 onClick={() => setCollapsed(true)}
               >
                 <GoSidebarCollapse className="w-5 h-5" />
@@ -237,7 +240,14 @@ export default function ChatSidebar({
                 Chats
               </div>
               <div className="px-2 flex-1 overflow-y-auto">
-                <ChatList isCollapsed={collapsed} />
+                <ChatList
+                  isCollapsed={collapsed}
+                  chatHistory={chatHistory}
+                  currentChatId={currentChatId}
+                  onSwitchChat={onSwitchChat}
+                  onDeleteChat={onDeleteChat}
+                  onNewChat={onNewChat}
+                />
               </div>
             </div>
             <Separator />

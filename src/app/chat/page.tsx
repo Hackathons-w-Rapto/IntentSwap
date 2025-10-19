@@ -25,6 +25,39 @@ import { cn } from "@/lib/utils";
 import { FaMicrophone } from "react-icons/fa6";
 import { ethers } from "ethers";
 
+declare global {
+  interface Window {
+    SpeechRecognition: typeof Function;
+    webkitSpeechRecognition: typeof Function;
+  }
+}
+
+type SpeechRecognitionAlternative = {
+  transcript: string;
+  confidence: number;
+};
+
+type SpeechRecognitionResult = {
+  isFinal: boolean;
+  length: number;
+  [index: number]: SpeechRecognitionAlternative;
+};
+
+type SpeechRecognitionResultList = {
+  length: number;
+  [index: number]: SpeechRecognitionResult;
+};
+
+type SpeechRecognitionEvent = Event & {
+  readonly resultIndex: number;
+  readonly results: SpeechRecognitionResultList;
+};
+
+type SpeechRecognitionErrorEvent = Event & {
+  readonly error: string;
+  readonly message: string;
+};
+
 interface Message {
   id: string;
   sender: "user" | "agent";
@@ -53,6 +86,19 @@ interface ChatSession {
   timestamp: Date;
   messages: Message[];
 }
+
+interface ISpeechRecognition {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onstart: () => void;
+  onresult: (event: SpeechRecognitionEvent) => void;
+  onend: () => void;
+  onerror: (event: SpeechRecognitionErrorEvent) => void;
+  start: () => void;
+  stop: () => void;
+}
+
 export default function ChatPage() {
   const Defaulttoken = "STT";
   const { authenticated, user } = usePrivy();
@@ -72,6 +118,9 @@ export default function ChatPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [recognition, setRecognition] = useState<any>(null);
   const [speechSupported, setSpeechSupported] = useState(false);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const [unsupportedBrowser, setUnsupportedBrowser] = useState(false);
+  const [speechError, setSpeechError] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -238,6 +287,19 @@ export default function ChatPage() {
       });
     }
   }, [messages, currentChatId]);
+
+  // Listen for online/offline events
+  useEffect(() => {
+    // Offline/online event listeners
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
 
   async function fetchIntentResponse(message: string, context: Message[]) {
     const res = await fetch("/api/chat", {
@@ -531,60 +593,83 @@ ${balanceText}\n\nPlease confirm the transaction details below:`,
     return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
-  // Initialize speech recognition
   useEffect(() => {
     if (typeof window !== "undefined") {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const SpeechRecognition =
-        (window as any).SpeechRecognition ||
-        (window as any).webkitSpeechRecognition;
+      try {
+        const SpeechRecognition =
+          window.SpeechRecognition || window.webkitSpeechRecognition;
 
-      if (SpeechRecognition) {
-        const recognitionInstance = new SpeechRecognition();
-        recognitionInstance.continuous = false;
-        recognitionInstance.interimResults = true;
-        recognitionInstance.lang = "en-US";
+        if (SpeechRecognition) {
+          const recognitionInstance =
+            new SpeechRecognition() as unknown as ISpeechRecognition;
+          recognitionInstance.continuous = false;
+          recognitionInstance.interimResults = true;
+          recognitionInstance.lang = "en-US";
 
-        recognitionInstance.onstart = () => {
-          setIsListening(true);
-        };
+          recognitionInstance.onstart = () => {
+            setIsListening(true);
+          };
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        recognitionInstance.onresult = (event: any) => {
-          let finalTranscript = "";
-          let interimTranscript = "";
+          recognitionInstance.onresult = (event: SpeechRecognitionEvent) => {
+            let finalTranscript = "";
+            let interimTranscript = "";
 
-          for (let i = event.resultIndex; i < event.results.length; ++i) {
-            if (event.results[i].isFinal) {
-              finalTranscript += event.results[i][0].transcript;
-            } else {
-              interimTranscript += event.results[i][0].transcript;
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+              if (event.results[i].isFinal) {
+                finalTranscript += event.results[i][0].transcript;
+              } else {
+                interimTranscript += event.results[i][0].transcript;
+              }
             }
-          }
 
-          // Update input with final transcript
-          if (finalTranscript) {
-            setInput(finalTranscript.trim());
-          } else {
-            // Show interim results in input
-            setInput(interimTranscript.trim());
-          }
-        };
+            // Update input with final transcript
+            if (finalTranscript) {
+              setInput(finalTranscript.trim());
+            } else {
+              // Show interim results in input
+              setInput(interimTranscript.trim());
+            }
+          };
 
-        recognitionInstance.onend = () => {
-          setIsListening(false);
-        };
+          recognitionInstance.onend = () => {
+            setIsListening(false);
+          };
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        recognitionInstance.onerror = (event: any) => {
-          console.error("Speech recognition error:", event.error);
-          setIsListening(false);
-        };
+          recognitionInstance.onerror = (
+            event: SpeechRecognitionErrorEvent
+          ) => {
+            console.error("Speech recognition error:", event.error);
+            setIsListening(false);
+            // User-friendly error handling
+            if (
+              event.error === "network" ||
+              event.error === "not-allowed" ||
+              event.error === "service-not-allowed"
+            ) {
+              setSpeechError(
+                "Voice input is not available in your browser or network. Please try again or use text input."
+              );
+              setSpeechSupported(false);
+              setUnsupportedBrowser(true);
+            } else {
+              setSpeechError(
+                `Voice input error: ${event.error}. Please try again or use text input.`
+              );
+            }
+          };
 
-        setRecognition(recognitionInstance);
-        setSpeechSupported(true);
-      } else {
+          setRecognition(recognitionInstance);
+          setSpeechSupported(true);
+          setUnsupportedBrowser(false);
+        } else {
+          setSpeechSupported(false);
+          setUnsupportedBrowser(true);
+        }
+      } catch (error) {
         setSpeechSupported(false);
+        setUnsupportedBrowser(true);
+        setSpeechError("Voice input is not supported in this browser.");
+        console.error("Speech recognition initialization error:", error);
       }
     }
   }, []);
@@ -612,417 +697,433 @@ ${balanceText}\n\nPlease confirm the transaction details below:`,
   };
 
   return (
-    <div className="min-h-screen bg-black flex font-sans">
-      {/* Mobile Sidebar Overlay */}
-      {showMobileSidebar && (
-        <div
-          className="fixed inset-0 bg-black/50 z-[55] md:hidden"
-          onClick={() => setShowMobileSidebar(false)}
-        />
-      )}
-
-      {/* Sidebar - ChatGPT Style Mobile */}
-      <div
-        className={cn(
-          "flex flex-col bg-gray-900 border-r border-gray-700 transition-all duration-300 ease-in-out",
-          // Mobile: Hidden by default, slide in from left when opened, higher z-index than header
-          "fixed left-0 top-0 h-screen z-[60]",
-          showMobileSidebar ? "translate-x-0 w-64" : "-translate-x-full w-64",
-          // Desktop: Normal sidebar behavior, lower z-index
-          "md:relative md:translate-x-0 md:z-40",
-          sidebarCollapsed ? "md:w-16" : "md:w-64"
-        )}
-      >
-        {/* Sidebar Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-700">
-          {/* Show title on mobile always, on desktop only when not collapsed */}
-          {(showMobileSidebar || !sidebarCollapsed) && (
-            <h2 className="text-lg font-semibold text-white">IntentSwap</h2>
+    <>
+      <div className="min-h-screen bg-black flex font-sans">
+        {/* Edge case banners */}
+        <div className="fixed top-0 left-0 w-full z-[100] pointer-events-none">
+          {isOffline && (
+            <div className="bg-red-700 text-white text-center py-2 font-semibold animate-pulse pointer-events-auto">
+              You are offline. Some features are disabled until you reconnect.
+            </div>
           )}
-
-          {/* Mobile close button */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowMobileSidebar(false)}
-            className="text-gray-400 hover:text-white hover:bg-gray-800 md:hidden"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-
-          {/* Desktop collapse button */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="text-gray-400 hover:text-white hover:bg-gray-800 hidden md:flex"
-          >
-            {sidebarCollapsed ? (
-              <ChevronRight className="h-4 w-4" />
-            ) : (
-              <ChevronLeft className="h-4 w-4" />
-            )}
-          </Button>
+          {unsupportedBrowser && (
+            <div className="bg-yellow-700 text-white text-center py-2 font-semibold pointer-events-auto">
+              Your browser does not support all features required for IntentSwap
+              (e.g., voice input). Please use a modern browser like Chrome or
+              Edge.
+            </div>
+          )}
+          {speechError && (
+            <div className="bg-red-800 text-white text-center py-2 font-semibold pointer-events-auto">
+              {speechError}
+            </div>
+          )}
         </div>
+        {/* Sidebar - ChatGPT Style Mobile */}
+        <div
+          className={cn(
+            "flex flex-col bg-gray-900 border-r border-gray-700 transition-all duration-300 ease-in-out",
 
-        {/* New Chat Button */}
-        <div className="p-4">
-          <Button
-            variant="outline"
-            onClick={createNewChat}
-            className={cn(
-              "w-full justify-start bg-transparent border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white",
-              sidebarCollapsed && "md:justify-center md:px-2" // Center icon when collapsed on desktop
+            "fixed left-0 top-0 min-h-screen z-[60]",
+            showMobileSidebar ? "translate-x-0 w-64" : "-translate-x-full w-64",
+
+            "md:relative md:translate-x-0 md:z-40",
+            sidebarCollapsed ? "md:w-16" : "md:w-64"
+          )}
+        >
+          {/* Sidebar Header */}
+          <div className="flex items-center justify-between p-4 border-b border-gray-700">
+            {(showMobileSidebar || !sidebarCollapsed) && (
+              <h2 className="text-lg font-semibold text-white">IntentSwap</h2>
             )}
-          >
-            <Plus className="h-4 w-4 flex-shrink-0" />
-            {/* Show text on mobile always, on desktop only when not collapsed */}
-            <span
-              className={cn(
-                "ml-2",
-                sidebarCollapsed && "md:hidden" // Hide text on desktop when collapsed
-              )}
+
+            {/* Mobile close button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowMobileSidebar(false)}
+              className="text-gray-400 hover:text-white hover:bg-gray-800 md:hidden"
             >
-              New Chat
-            </span>
-          </Button>
-        </div>
+              <X className="h-4 w-4" />
+            </Button>
 
-        {/* Chat History */}
-        <div className="flex-1 px-2 overflow-y-auto">
-          {/* Mobile: Always show full list, Desktop: Show full when not collapsed */}
-          <div
-            className={cn(
-              "space-y-2",
-              "md:hidden",
-              !sidebarCollapsed && "md:block"
-            )}
-          >
-            {chatHistory.map((chat) => (
-              <div
-                key={chat.id}
-                className={cn(
-                  "group relative flex items-center w-full text-left text-gray-300 hover:bg-gray-800 hover:text-white rounded-lg p-3 transition-colors",
-                  currentChatId === chat.id && "bg-gray-800 text-white"
-                )}
-              >
-                <div
-                  className="flex items-center flex-1 min-w-0 cursor-pointer"
-                  onClick={() => {
-                    switchToChat(chat.id);
-                    // Close mobile sidebar when selecting a chat
-                    setShowMobileSidebar(false);
-                  }}
-                >
-                  <MessageSquare className="h-4 w-4 mr-2 flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm truncate">{chat.title}</p>
-                    <p className="text-xs text-gray-500 truncate">
-                      {chat.timestamp.toLocaleDateString()}
-                    </p>
-                  </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    deleteChat(chat.id);
-                  }}
-                  className="opacity-0 group-hover:opacity-100 ml-2 h-6 w-6 p-0 text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all duration-200"
-                  title="Delete chat"
-                >
-                  <Trash2 className="h-3 w-3" />
-                </Button>
-              </div>
-            ))}
+            {/* Desktop collapse button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="text-gray-400 hover:text-white hover:bg-gray-800 hidden md:flex"
+            >
+              {sidebarCollapsed ? (
+                <ChevronRight className="h-4 w-4" />
+              ) : (
+                <ChevronLeft className="h-4 w-4" />
+              )}
+            </Button>
           </div>
 
-          {/* Desktop collapsed view - only icons */}
-          {sidebarCollapsed && (
-            <div className="space-y-2 py-2 hidden md:block">
+          {/* New Chat Button */}
+          <div className="p-4">
+            <Button
+              variant="outline"
+              onClick={createNewChat}
+              className={cn(
+                "w-full justify-start bg-transparent border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white",
+                sidebarCollapsed && "md:justify-center md:px-2" // Center icon when collapsed on desktop
+              )}
+            >
+              <Plus className="h-4 w-4 flex-shrink-0" />
+              {/* Show text on mobile always, on desktop only when not collapsed */}
+              <span
+                className={cn(
+                  "ml-2",
+                  sidebarCollapsed && "md:hidden" // Hide text on desktop when collapsed
+                )}
+              >
+                New Chat
+              </span>
+            </Button>
+          </div>
+
+          {/* Chat History */}
+          <div className="flex-1 px-2 overflow-y-auto">
+            {/* Mobile: Always show full list, Desktop: Show full when not collapsed */}
+            <div
+              className={cn(
+                "space-y-2",
+                "md:hidden",
+                !sidebarCollapsed && "md:block"
+              )}
+            >
               {chatHistory.map((chat) => (
-                <Button
+                <div
                   key={chat.id}
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => switchToChat(chat.id)}
                   className={cn(
-                    "w-full p-2 text-gray-300 hover:bg-gray-800 hover:text-white",
+                    "group relative flex items-center w-full text-left text-gray-300 hover:bg-gray-800 hover:text-white rounded-lg p-3 transition-colors",
                     currentChatId === chat.id && "bg-gray-800 text-white"
                   )}
                 >
-                  <MessageSquare className="h-4 w-4" />
-                </Button>
+                  <div
+                    className="flex items-center flex-1 min-w-0 cursor-pointer"
+                    onClick={() => {
+                      switchToChat(chat.id);
+                      // Close mobile sidebar when selecting a chat
+                      setShowMobileSidebar(false);
+                    }}
+                  >
+                    <MessageSquare className="h-4 w-4 mr-2 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm truncate">{chat.title}</p>
+                      <p className="text-xs text-gray-500 truncate">
+                        {chat.timestamp.toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteChat(chat.id);
+                    }}
+                    className="opacity-0 group-hover:opacity-100 ml-2 h-6 w-6 p-0 text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all duration-200"
+                    title="Delete chat"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
               ))}
             </div>
-          )}
-        </div>
 
-        {/* Sidebar Footer */}
-        <div className="border-t border-gray-700 p-4 space-y-2">
-          <Button
-            variant="ghost"
-            className={cn(
-              "w-full justify-start text-gray-300 hover:bg-gray-800 hover:text-white",
-              sidebarCollapsed && "md:px-2"
+            {/* Desktop collapsed view - only icons */}
+            {sidebarCollapsed && (
+              <div className="space-y-2 py-2 hidden md:block">
+                {chatHistory.map((chat) => (
+                  <Button
+                    key={chat.id}
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => switchToChat(chat.id)}
+                    className={cn(
+                      "w-full p-2 text-gray-300 hover:bg-gray-800 hover:text-white",
+                      currentChatId === chat.id && "bg-gray-800 text-white"
+                    )}
+                  >
+                    <MessageSquare className="h-4 w-4" />
+                  </Button>
+                ))}
+              </div>
             )}
-          >
-            <Settings className="h-4 w-4" />
-            {/* Show text on mobile always, on desktop only when not collapsed */}
-            <span
-              className={cn(
-                "ml-2",
-                "md:hidden",
-                !sidebarCollapsed && "md:inline"
-              )}
-            >
-              Settings
-            </span>
-          </Button>
-          <Button
-            variant="ghost"
-            className={cn(
-              "w-full justify-start text-gray-300 hover:bg-gray-800 hover:text-white",
-              sidebarCollapsed && "md:px-2"
-            )}
-          >
-            <LogOut className="h-4 w-4" />
-            {/* Show text on mobile always, on desktop only when not collapsed */}
-            <span
-              className={cn(
-                "ml-2",
-                "md:hidden",
-                !sidebarCollapsed && "md:inline"
-              )}
-            >
-              Sign Out
-            </span>
-          </Button>
-        </div>
-      </div>
-
-      {/* Main Chat Area - Full width on mobile like ChatGPT */}
-      <div
-        className={cn(
-          "flex-1 flex flex-col  transition-all duration-300 ease-in-out",
-          // Mobile: Full width always (no margin)
-          "w-full"
-          // Desktop: Account for sidebar width
-          // sidebarCollapsed ? "md:ml-16" : "md:ml-64"
-        )}
-      >
-        {/* Header */}
-        <header className="backdrop-blur-sm border-b border-gray-800/50 p-3 md:p-4 sticky top-0 z-50 bg-black/80">
-          <div className=" mx-auto w-full flex items-center justify-between">
-            {/* Left side - Mobile menu + App name like ChatGPT */}
-            <div className="flex items-center gap-3">
-              {/* Mobile menu button - like ChatGPT */}
-              <button
-                onClick={() => setShowMobileSidebar(true)}
-                className="md:hidden p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
-              >
-                <Menu className="h-5 w-5" />
-              </button>
-
-              <h1 className="text-base md:text-lg font-semibold text-white">
-                IntentSwap
-              </h1>
-            </div>
-
-            {/* Right side - Wallet connection */}
-            <div className="flex items-center gap-3">
-              {authenticated ? (
-                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-[#1E3DFF] via-[#7A1EFF] to-[#FF1E99] shadow-lg hover:shadow-xl hover:shadow-purple-500/25 transition-all duration-300 border border-white/10 backdrop-blur-sm">
-                  <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse shadow-lg shadow-green-400/50"></span>
-                  <span className="text-xs md:text-sm text-white font-medium hidden sm:block">
-                    Connected
-                  </span>
-                </div>
-              ) : (
-                <ConnectWalletButton />
-              )}
-            </div>
           </div>
-        </header>
 
-        {/* Chat Container */}
-        <div className="flex-1 flex flex-col max-w-5xl mx-auto w-full p-2 md:p-4">
-          <div className="flex-1 overflow-y-auto space-y-4 mb-6 max-h-[calc(100vh-200px)] px-2 md:px-0">
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`flex ${
-                  msg.sender === "user" ? "justify-end" : "justify-start"
-                }`}
+          {/* Sidebar Footer */}
+          <div className="border-t border-gray-700 p-4 space-y-2">
+            <Button
+              variant="ghost"
+              className={cn(
+                "w-full justify-start text-gray-300 hover:bg-gray-800 hover:text-white",
+                sidebarCollapsed && "md:px-2"
+              )}
+            >
+              <Settings className="h-4 w-4" />
+              {/* Show text on mobile always, on desktop only when not collapsed */}
+              <span
+                className={cn(
+                  "ml-2",
+                  "md:hidden",
+                  !sidebarCollapsed && "md:inline"
+                )}
               >
+                Settings
+              </span>
+            </Button>
+            <Button
+              variant="ghost"
+              className={cn(
+                "w-full justify-start text-gray-300 hover:bg-gray-800 hover:text-white",
+                sidebarCollapsed && "md:px-2"
+              )}
+            >
+              <LogOut className="h-4 w-4" />
+              {/* Show text on mobile always, on desktop only when not collapsed */}
+              <span
+                className={cn(
+                  "ml-2",
+                  "md:hidden",
+                  !sidebarCollapsed && "md:inline"
+                )}
+              >
+                Sign Out
+              </span>
+            </Button>
+          </div>
+        </div>
+
+        {/* Main Chat Area - Full width on mobile like ChatGPT */}
+        <div
+          className={cn(
+            "flex-1 flex flex-col  transition-all duration-300 ease-in-out",
+            // Mobile: Full width always (no margin)
+            "w-full"
+            // Desktop: Account for sidebar width
+            // sidebarCollapsed ? "md:ml-16" : "md:ml-64"
+          )}
+        >
+          {/* Header */}
+          <header className="backdrop-blur-sm border-b border-gray-800/50 p-3 md:p-4 sticky top-0 z-50 bg-black/80">
+            <div className=" mx-auto w-full flex items-center justify-between">
+              {/* Left side - Mobile menu + App name like ChatGPT */}
+              <div className="flex items-center gap-3">
+                {/* Mobile menu button - like ChatGPT */}
+                <button
+                  onClick={() => setShowMobileSidebar(true)}
+                  className="md:hidden p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
+                >
+                  <Menu className="h-5 w-5" />
+                </button>
+
+                <h1 className="text-base md:text-lg font-semibold text-white">
+                  IntentSwap
+                </h1>
+              </div>
+
+              {/* Right side - Wallet connection */}
+              <div className="flex items-center gap-3">
+                {authenticated ? (
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-[#1E3DFF] via-[#7A1EFF] to-[#FF1E99] shadow-lg hover:shadow-xl hover:shadow-purple-500/25 transition-all duration-300 border border-white/10 backdrop-blur-sm">
+                    <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse shadow-lg shadow-green-400/50"></span>
+                    <span className="text-xs md:text-sm text-white font-medium block">
+                      Connected
+                    </span>
+                  </div>
+                ) : (
+                  <ConnectWalletButton />
+                )}
+              </div>
+            </div>
+          </header>
+
+          {/* Chat Container */}
+          <div className="flex-1 flex flex-col max-w-5xl mx-auto w-full p-2 md:p-4">
+            <div className="flex-1 overflow-y-auto space-y-4 mb-6 max-h-[calc(100vh-200px)] px-2 md:px-0 pb-32">
+              {messages.map((msg) => (
                 <div
-                  className={`max-w-[85%] md:max-w-[80%] lg:max-w-[70%] ${
-                    msg.sender === "user" ? "order-2" : ""
+                  key={msg.id}
+                  className={`flex ${
+                    msg.sender === "user" ? "justify-end" : "justify-start"
                   }`}
                 >
-                  {/* Message bubble */}
                   <div
-                    className={`px-3 md:px-6 py-2 md:py-3 rounded-2xl relative text-sm md:text-base ${
-                      msg.sender === "user"
-                        ? "bg-gradient-to-r from-[#1E3DFF] via-[#7A1EFF] to-[#FF1E99] text-white"
-                        : msg.type === "error"
-                        ? "bg-red-900/50 border border-red-500 text-white"
-                        : msg.type === "confirmation"
-                        ? "bg-yellow-900/50 border border-yellow-500 text-white"
-                        : msg.type === "transaction"
-                        ? "bg-green-900/50 border border-green-500 text-white"
-                        : "bg-gray-900 text-white border border-gray-600"
+                    className={`max-w-[85%] md:max-w-[80%] lg:max-w-[70%] ${
+                      msg.sender === "user" ? "order-2" : ""
                     }`}
                   >
-                    <p className="whitespace-pre-line leading-relaxed ml-1">
-                      {msg.text}
-                    </p>
+                    {/* Message bubble */}
+                    <div
+                      className={`px-3 md:px-6 py-2 md:py-3 rounded-2xl relative text-sm md:text-base ${
+                        msg.sender === "user"
+                          ? "bg-gradient-to-r from-[#1E3DFF] via-[#7A1EFF] to-[#FF1E99] text-white"
+                          : msg.type === "error"
+                          ? "bg-red-900/50 border border-red-500 text-white"
+                          : msg.type === "confirmation"
+                          ? "bg-yellow-900/50 border border-yellow-500 text-white"
+                          : msg.type === "transaction"
+                          ? "bg-green-900/50 border border-green-500 text-white"
+                          : "bg-gray-900 text-white border border-gray-600"
+                      }`}
+                    >
+                      <p className="whitespace-pre-line truncate md:truncate-none leading-relaxed ml-1">
+                        {msg.text}
+                      </p>
 
-                    {/* Transaction details */}
-                    {msg.transactionData && (
-                      <div className="mt-3 p-2 md:p-3 bg-black/30 rounded-lg border border-gray-600">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs md:text-sm">
-                          <div>
-                            <span className="text-gray-400">Amount:</span>
-                            <span className="ml-2 font-semibold">
-                              {msg.transactionData.amount}{" "}
-                              {msg.transactionData.token}
-                            </span>
+                      {/* Transaction details */}
+                      {msg.transactionData && (
+                        <div className="mt-3 p-2 md:p-3 bg-black/30 rounded-lg border border-gray-600">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs md:text-sm">
+                            <div>
+                              <span className="text-gray-400">Amount:</span>
+                              <span className="ml-2 font-semibold">
+                                {msg.transactionData.amount}{" "}
+                                {msg.transactionData.token}
+                              </span>
+                            </div>
+                            <div className="">
+                              <span className="text-gray-400">To:</span>
+                              <span className="ml-2 font-mono text-xs break-all whitespace-normal max-w-[10vw] block">
+                                {msg.transactionData.recipient}
+                              </span>
+                            </div>
                           </div>
-                          <div>
-                            <span className="text-gray-400">To:</span>
-                            <span className="ml-2 font-mono text-xs break-all">
-                              {msg.transactionData.recipient}
-                            </span>
-                          </div>
-                        </div>
 
-                        {msg.transactionData.txReciept && (
+                          {msg.transactionData.txReciept && (
+                            <div className="mt-2 flex items-center gap-2">
+                              <span className="text-gray-400 text-sm">TX:</span>
+                              <button
+                                onClick={() =>
+                                  copyToClipboard(
+                                    msg.transactionData!.txReciept!
+                                  )
+                                }
+                                className="text-blue-400 hover:text-blue-300 text-xs font-mono flex items-center gap-1"
+                              >
+                                {msg.transactionData.txReciept.slice(0, 10)}...
+                                <Copy className="w-3 h-3" />
+                              </button>
+                              <ExternalLink className="w-3 h-3 text-gray-400" />
+                            </div>
+                          )}
+
                           <div className="mt-2 flex items-center gap-2">
-                            <span className="text-gray-400 text-sm">TX:</span>
-                            <button
-                              onClick={() =>
-                                copyToClipboard(msg.transactionData!.txReciept!)
-                              }
-                              className="text-blue-400 hover:text-blue-300 text-xs font-mono flex items-center gap-1"
-                            >
-                              {msg.transactionData.txReciept.slice(0, 10)}...
-                              <Copy className="w-3 h-3" />
-                            </button>
-                            <ExternalLink className="w-3 h-3 text-gray-400" />
+                            {msg.transactionData.status === "pending" && (
+                              <>
+                                <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
+                                <span className="text-yellow-400 text-sm">
+                                  Pending...
+                                </span>
+                              </>
+                            )}
+                            {msg.transactionData.status === "confirmed" && (
+                              <>
+                                <CheckCircle className="w-4 h-4 text-green-400" />
+                                <span className="text-green-400 text-sm">
+                                  Confirmed
+                                </span>
+                              </>
+                            )}
+                            {msg.transactionData.status === "failed" && (
+                              <>
+                                <AlertCircle className="w-4 h-4 text-red-400" />
+                                <span className="text-red-400 text-sm">
+                                  Failed
+                                </span>
+                              </>
+                            )}
                           </div>
-                        )}
-
-                        <div className="mt-2 flex items-center gap-2">
-                          {msg.transactionData.status === "pending" && (
-                            <>
-                              <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
-                              <span className="text-yellow-400 text-sm">
-                                Pending...
-                              </span>
-                            </>
-                          )}
-                          {msg.transactionData.status === "confirmed" && (
-                            <>
-                              <CheckCircle className="w-4 h-4 text-green-400" />
-                              <span className="text-green-400 text-sm">
-                                Confirmed
-                              </span>
-                            </>
-                          )}
-                          {msg.transactionData.status === "failed" && (
-                            <>
-                              <AlertCircle className="w-4 h-4 text-red-400" />
-                              <span className="text-red-400 text-sm">
-                                Failed
-                              </span>
-                            </>
-                          )}
                         </div>
-                      </div>
-                    )}
-                  </div>
+                      )}
+                    </div>
 
-                  {/* Timestamp */}
-                  <p
-                    className={`text-xs text-gray-500 mt-1 ${
-                      msg.sender === "user" ? "text-right" : "text-left ml-5"
-                    }`}
-                  >
-                    {formatTime(msg.timestamp)}
-                  </p>
+                    {/* Timestamp */}
+                    <p
+                      className={`text-xs text-gray-500 mt-1 ${
+                        msg.sender === "user" ? "text-right" : "text-left ml-5"
+                      }`}
+                    >
+                      {formatTime(msg.timestamp)}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
 
-            {/* Typing indicator */}
-            {isTyping && (
-              <div className="flex justify-start">
-                <div className="bg-gray-800 text-white px-4 py-3 rounded-2xl border border-gray-600">
-                  <div className="flex space-x-1">
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                    <div
-                      className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                      style={{ animationDelay: "0.1s" }}
-                    ></div>
-                    <div
-                      className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                      style={{ animationDelay: "0.2s" }}
-                    ></div>
+              {/* Typing indicator */}
+              {isTyping && (
+                <div className="flex justify-start">
+                  <div className="bg-gray-800 text-white px-4 py-3 rounded-2xl border border-gray-600">
+                    <div className="flex space-x-1">
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                      <div
+                        className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                        style={{ animationDelay: "0.1s" }}
+                      ></div>
+                      <div
+                        className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                        style={{ animationDelay: "0.2s" }}
+                      ></div>
+                    </div>
                   </div>
+                </div>
+              )}
+
+              <div ref={messagesEndRef} />
+            </div>
+            {/* Confirmation Panel */}
+            {pendingConfirmation && (
+              <div className="mb-4 p-3 md:p-4 bg-yellow-900/20 border border-yellow-500 rounded-xl mx-2 md:mx-0">
+                <h3 className="text-yellow-400 font-semibold mb-3 text-sm md:text-base">
+                  Confirm Transaction
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+                  <div className="bg-black/50 p-3 rounded-lg">
+                    <p className="text-gray-400 text-xs md:text-sm">Amount</p>
+                    <p className="text-white font-semibold text-sm md:text-base">
+                      {pendingConfirmation?.amount} {pendingConfirmation?.token}
+                    </p>
+                  </div>
+                  <div className="bg-black/50 p-3 rounded-lg">
+                    <p className="text-gray-400 text-xs md:text-sm">
+                      Recipient
+                    </p>
+                    <p className="text-white font-semibold text-xs md:text-sm break-all">
+                      {pendingConfirmation?.recipient}
+                    </p>
+                  </div>
+                  <div className="bg-black/50 p-3 rounded-lg">
+                    <p className="text-gray-400 text-xs md:text-sm">Gas Fee</p>
+                    <p className="text-white font-semibold text-sm md:text-base">
+                      {pendingConfirmation?.gasEstimate}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-col md:flex-row gap-3">
+                  <button
+                    onClick={confirmTransaction}
+                    className="flex-1 bg-gradient-to-r from-green-600 to-green-500 text-white py-2 px-4 rounded-lg font-semibold hover:from-green-700 hover:to-green-600 transition-all text-sm md:text-base"
+                  >
+                    Confirm & Send
+                  </button>
+                  <button
+                    onClick={cancelTransaction}
+                    className="flex-1 bg-gray-700 text-white py-2 px-4 rounded-lg font-semibold hover:bg-gray-600 transition-all text-sm md:text-base"
+                  >
+                    Cancel
+                  </button>
                 </div>
               </div>
             )}
-
-            <div ref={messagesEndRef} />
           </div>
-          {/* Confirmation Panel */}
-          {pendingConfirmation && (
-            <div className="mb-4 p-3 md:p-4 bg-yellow-900/20 border border-yellow-500 rounded-xl mx-2 md:mx-0">
-              <h3 className="text-yellow-400 font-semibold mb-3 text-sm md:text-base">
-                Confirm Transaction
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-                <div className="bg-black/50 p-3 rounded-lg">
-                  <p className="text-gray-400 text-xs md:text-sm">Amount</p>
-                  <p className="text-white font-semibold text-sm md:text-base">
-                    {pendingConfirmation.amount} {pendingConfirmation.token}
-                  </p>
-                </div>
-                <div className="bg-black/50 p-3 rounded-lg">
-                  <p className="text-gray-400 text-xs md:text-sm">Recipient</p>
-                  <p className="text-white font-semibold text-xs md:text-sm break-all">
-                    {pendingConfirmation.recipient}
-                  </p>
-                </div>
-                <div className="bg-black/50 p-3 rounded-lg">
-                  <p className="text-gray-400 text-xs md:text-sm">Gas Fee</p>
-                  <p className="text-white font-semibold text-sm md:text-base">
-                    {pendingConfirmation.gasEstimate}
-                  </p>
-                </div>
-              </div>
-              <div className="flex flex-col md:flex-row gap-3">
-                <button
-                  onClick={confirmTransaction}
-                  className="flex-1 bg-gradient-to-r from-green-600 to-green-500 text-white py-2 px-4 rounded-lg font-semibold hover:from-green-700 hover:to-green-600 transition-all text-sm md:text-base"
-                >
-                  Confirm & Send
-                </button>
-                <button
-                  onClick={cancelTransaction}
-                  className="flex-1 bg-gray-700 text-white py-2 px-4 rounded-lg font-semibold hover:bg-gray-600 transition-all text-sm md:text-base"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          )}
-          {/* Input */}{" "}
-          <div className="relative flex flex-col space-y-6 items-center justify-center">
-            {/* Input Container */}
-            <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center w-full max-w-4xl mx-auto px-4">
+          {/* Fixed Input Box at Bottom */}
+          <div className="sticky bottom-0 left-0 w-full bg-black/95 z-50 py-4 border-t border-gray-800">
+            <div className="flex flex-row gap-3 items-stretch sm:items-center w-full max-w-4xl mx-auto px-4">
               {/* Input Field with Microphone */}
               <div className="flex-1 relative">
                 {/* Listening indicator */}
@@ -1039,63 +1140,85 @@ ${balanceText}\n\nPlease confirm the transaction details below:`,
                       : "border-gray-600 bg-gray-900/50 focus:ring-purple-500"
                   } text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent`}
                   placeholder={
-                    isListening
+                    isOffline
+                      ? "You are offline. Please reconnect."
+                      : unsupportedBrowser
+                      ? "Unsupported browser. Some features disabled."
+                      : isListening
                       ? "Listening... Speak your command"
                       : "Type your command... (e.g., 'Send 50 STT to Alice')"
                   }
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-                  disabled={isTyping || !!pendingConfirmation}
+                  disabled={
+                    isTyping ||
+                    !!pendingConfirmation ||
+                    isOffline ||
+                    unsupportedBrowser
+                  }
                 />
                 <button
                   className={`absolute right-4 top-1/2 -translate-y-1/2 transition-all duration-300 ${
                     isListening
                       ? "text-red-400 hover:text-red-300 animate-pulse"
-                      : speechSupported
+                      : speechSupported && !isOffline && !unsupportedBrowser
                       ? "text-gray-400 hover:text-white"
                       : "text-gray-600 cursor-not-allowed"
                   }`}
                   type="button"
                   title={
-                    !speechSupported
+                    isOffline
+                      ? "Voice input disabled while offline"
+                      : unsupportedBrowser
+                      ? "Voice input not supported in this browser"
+                      : !speechSupported
                       ? "Voice input not supported"
                       : isListening
                       ? "Stop listening"
                       : "Start voice input"
                   }
                   onClick={toggleListening}
-                  disabled={!speechSupported}
+                  disabled={!speechSupported || isOffline || unsupportedBrowser}
                 >
                   <FaMicrophone
                     className={`w-4 h-4 ${isListening ? "drop-shadow-lg" : ""}`}
                   />
                 </button>
               </div>
-
               {/* Send Button */}
               <button
                 onClick={sendMessage}
-                disabled={!input.trim() || isTyping || !!pendingConfirmation}
-                className="px-6 py-3 rounded-2xl font-semibold bg-gradient-to-r from-[#1E3DFF] via-[#7A1EFF] to-[#FF1E99] text-white shadow-lg hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 transition-all flex items-center justify-center gap-2 text-base sm:w-auto w-full"
+                disabled={
+                  !input.trim() ||
+                  isTyping ||
+                  !!pendingConfirmation ||
+                  isOffline ||
+                  unsupportedBrowser
+                }
+                className="px-6 py-3 rounded-2xl font-semibold bg-gradient-to-r from-[#1E3DFF] via-[#7A1EFF] to-[#FF1E99] text-white shadow-lg hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 transition-all flex items-center justify-center gap-2 text-base sm:w-auto"
               >
                 <Send className="w-4 h-4" />
                 <span>Send</span>
               </button>
             </div>
-
             {/* Quick Suggestions */}
-            <div className="flex md:flex-row-reverse gap-2 justify-center px-4 max-w-4xl mx-auto">
+            <div className="flex md:flex-row-reverse gap-2 justify-center px-4 max-w-4xl mx-auto mt-2">
               {[
-                "Send 50 STT to Alice",
-                "Transfer 1 ETH to 0x123...",
-                "Check my STT balance",
+                "Send 50 STT to 0x123.",
+                "Transfer 100 tokens to 0x123.",
+                "Pay 0x123. 25 STT",
               ].map((suggestion, idx) => (
                 <button
                   key={idx}
                   onClick={() => setInput(suggestion)}
-                  className="text-sm px-3 py-1.5 bg-gray-800/80 text-gray-300 rounded-full hover:bg-gray-700 hover:text-white transition-all border border-gray-700/50 hover:border-gray-600"
-                  disabled={isTyping || !!pendingConfirmation}
+                  className="text-sm px-1.5 py-1.5 bg-gray-800/80 text-gray-300 rounded-full hover:bg-gray-700 hover:text-white transition-all border border-gray-700/50 hover:border-gray-600"
+                  disabled={
+                    isTyping ||
+                    !!pendingConfirmation ||
+                    isOffline ||
+                    unsupportedBrowser
+                  }
                 >
                   {suggestion}
                 </button>
@@ -1104,6 +1227,6 @@ ${balanceText}\n\nPlease confirm the transaction details below:`,
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

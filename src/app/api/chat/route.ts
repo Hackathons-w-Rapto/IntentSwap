@@ -3,22 +3,37 @@ import { GeminiParser } from "@/lib/ai/gemini";
 import { BlockchainClient } from "@/lib/blockchain/client";
 import { SupportedToken, TOKEN_ADDRESSES } from "@/lib/blockchain/config";
 
+// Define ActionResult type for all possible shapes
+type ActionResult =
+  | { needsAddress: true; amount: string; token: string; recipientName: string }
+  | { recipient: string; gasEstimate: string; amount: string; token: string }
+  | { balance: string; token: string }
+  | null;
+
 export async function POST(req: NextRequest) {
   try {
     const { message, context, senderAddress } = await req.json();
 
     if (!message) {
-      return NextResponse.json({ error: "Message is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Message is required" },
+        { status: 400 }
+      );
     }
 
     if (!senderAddress) {
-      return NextResponse.json({ error: "Please provide a sender address" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Please provide a sender address" },
+        { status: 400 }
+      );
     }
 
     // ✅ Format conversation context into readable form for AI
     const formattedContext = Array.isArray(context)
       ? context
-          .map((msg) => `${msg.sender === "user" ? "User" : "Agent"}: ${msg.text}`)
+          .map(
+            (msg) => `${msg.sender === "user" ? "User" : "Agent"}: ${msg.text}`
+          )
           .join("\n")
       : "General conversation";
 
@@ -28,11 +43,13 @@ export async function POST(req: NextRequest) {
     // ✅ 1️⃣ Try to find previous intent in context (e.g., last transfer)
     let previousIntent = null;
     if (Array.isArray(context)) {
-      const lastAgentMessage = [...context].reverse().find(
-        (msg) =>
-          msg.sender === "agent" &&
-          /sending|transfer|prepare|estimated gas/i.test(msg.text)
-      );
+      const lastAgentMessage = [...context]
+        .reverse()
+        .find(
+          (msg) =>
+            msg.sender === "agent" &&
+            /sending|transfer|prepare|estimated gas/i.test(msg.text)
+        );
 
       if (lastAgentMessage) {
         try {
@@ -71,7 +88,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ✅ 3️⃣ Act on the parsed intent
-    let actionResult: any = null;
+    let actionResult: ActionResult = null;
     let aiResponse: string = "";
 
     switch (intent.action?.toLowerCase()) {
@@ -80,7 +97,7 @@ export async function POST(req: NextRequest) {
       case "pay": {
         // Resolve recipient
         const resolved = await blockchain.resolveAddress(intent.recipient);
-        
+
         // If we can't resolve the address (e.g., it's a name like "Alice")
         if (!resolved) {
           aiResponse = `I understand you want to send ${intent.amount} ${intent.token} to "${intent.recipient}", but I need the actual wallet address to proceed. Could you please provide the recipient's wallet address?`;
@@ -109,7 +126,7 @@ export async function POST(req: NextRequest) {
           senderAddress,
           recipient,
           intent.amount,
-          tokenAddress as any
+          tokenAddress
         );
 
         aiResponse = `You're sending ${intent.amount} ${intent.token} to ${recipient}.
@@ -138,16 +155,22 @@ Would you like me to prepare the transaction?`;
         const tokenAddress = intent.token === "STT" ? null : TOKEN_ADDRESSES.ETH;
         const balance = await blockchain.getBalance(
           senderAddress,
-          tokenAddress as any
+          tokenAddress
         );
 
-        aiResponse = `Your current ${intent.token || "STT"} balance is ${balance}.`;
+        aiResponse = `Your current ${
+          intent.token || "STT"
+        } balance is ${balance}.`;
         actionResult = { balance, token: intent.token || "STT" };
         break;
       }
 
       default: {
-        aiResponse = await parser.generateResponse(formattedContext, message, senderAddress);
+        aiResponse = await parser.generateResponse(
+          formattedContext,
+          message,
+          senderAddress
+        );
         break;
       }
     }
@@ -162,6 +185,9 @@ Would you like me to prepare the transaction?`;
     });
   } catch (error) {
     console.error("Error in chat:", error);
-    return NextResponse.json({ error: "Failed to generate response" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to generate response" },
+      { status: 500 }
+    );
   }
 }

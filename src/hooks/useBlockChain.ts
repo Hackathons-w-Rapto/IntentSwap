@@ -34,9 +34,12 @@ export function useBlockchain() {
         success: true,
         txHash: receipt.hash,
       };
-    } catch (err: any) {
+    } catch (err: unknown) {
       setLoading(false);
-      const errorMessage = err?.message || "Transaction failed";
+      let errorMessage = "Transaction failed";
+      if (err && typeof err === "object" && "message" in err) {
+        errorMessage = (err as { message: string }).message;
+      }
       setError(errorMessage);
       return {
         success: false,
